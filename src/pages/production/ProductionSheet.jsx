@@ -9,20 +9,170 @@ import html2canvas from 'html2canvas';
 const ProductionSheetComponent = () => {
   const contentRef = useRef(null);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [isProductionSheetEditMode, setIsProductionSheetEditMode] = useState(false);
+  const [isLabelEditMode, setIsLabelEditMode] = useState(false);
   
-  // Detect if the device is mobile
+  // Saved production sheet data
+  const [savedProductionData, setSavedProductionData] = useState({
+    id: 'ORD-001',
+    customerName: 'John Smith',
+    fullAddress: '23 Principal Street, Apt 45A, New York, 10001',
+    phone: '+1 234-567-8901',
+    email: 'john.smith@example.com',
+    productModel: 'Comfort Plus',
+    size: 'King - 30cm height',
+    colour: 'Gray',
+    storage: 'With Storage',
+    height: '30cm',
+    quantity: 2,
+    orderDate: '15/05/2023',
+    deliveryDate: '25/05/2023',
+    extras: 'Delivery before 5pm',
+    status: 'In Production',
+    marketplace: 'Amazon',
+    signature: '' // Added signature field
+  });
+  
+  // Temporary production Sheet data for editing
+  const [tempProductionData, setTempProductionData] = useState({
+    id: 'ORD-001',
+    customerName: 'John Smith',
+    fullAddress: '23 Principal Street, Apt 45A, New York, 10001',
+    phone: '+1 234-567-8901',
+    email: 'john.smith@example.com',
+    productModel: 'Comfort Plus',
+    size: 'King - 30cm height',
+    colour: 'Gray',
+    storage: 'With Storage',
+    height: '30cm',
+    quantity: 2,
+    orderDate: '15/05/2023',
+    deliveryDate: '25/05/2023',
+    extras: 'Delivery before 5pm',
+    status: 'In Production',
+    marketplace: 'Amazon',
+    signature: '' // Added signature field
+  });
+  
+  // Saved label data
+  const [savedLabelData, setSavedLabelData] = useState({
+    id: 'ORD-001',
+    customerName: 'John Smith',
+    fullAddress: '23 Principal Street, Apt 45A, New York, 10001',
+    shipper: 'SOFA & FURNITURE CO.',
+    shipperAddress: '123 Production Street, London, UK, SW1A 1AA',
+    weight: '50kg',
+    item: 'Comfort Plus',
+    size: 'King - 30cm height',
+    date: '18/12/2025',
+    notes: 'Delivery before 5pm'
+  });
+  
+  // Temporary label data for editing
+  const [tempLabelData, setTempLabelData] = useState({
+    id: 'ORD-001',
+    customerName: 'John Smith',
+    fullAddress: '23 Principal Street, Apt 45A, New York, 10001',
+    shipper: 'SOFA & FURNITURE CO.',
+    shipperAddress: '123 Production Street, London, UK, SW1A 1AA',
+    weight: '50kg',
+    item: 'Comfort Plus',
+    size: 'King - 30cm height',
+    date: '18/12/2025',
+    notes: 'Delivery before 5pm'
+  });
+  
+  // Handle production Sheet input changes
+  const handleProductionInputChange = (field, value) => {
+    setTempProductionData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+  
+  // Handle label input changes
+  const handleLabelInputChange = (field, value) => {
+    setTempLabelData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+  
+  // Toggle production Sheet edit mode
+  const toggleProductionSheetEditMode = () => {
+    if (isProductionSheetEditMode) {
+      // Save data
+      setSavedProductionData(tempProductionData);
+      setIsProductionSheetEditMode(false);
+      alert('Production sheet details saved successfully!');
+    } else {
+      // Enter edit mode
+      setTempProductionData(savedProductionData);
+      setIsProductionSheetEditMode(true);
+    }
+  };
+  
+  // Cancel production Sheet edit mode
+  const cancelProductionSheetEdit = () => {
+    setTempProductionData(savedProductionData);
+    setIsProductionSheetEditMode(false);
+  };
+  
+  // Toggle label edit mode
+  const toggleLabelEditMode = () => {
+    if (isLabelEditMode) {
+      // Save data
+      setSavedLabelData(tempLabelData);
+      setIsLabelEditMode(false);
+      alert('Label details saved successfully!');
+    } else {
+      // Enter edit mode
+      setTempLabelData(savedLabelData);
+      setIsLabelEditMode(true);
+    }
+  };
+  
+  // Cancel label edit mode
+  const cancelLabelEdit = () => {
+    setTempLabelData(savedLabelData);
+    setIsLabelEditMode(false);
+  };
+  
+  // Handle signature upload
+  const handleSignatureUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        handleProductionInputChange('signature', event.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+  
+  // Clear signature
+  const clearSignature = () => {
+    handleProductionInputChange('signature', '');
+  };
+  
+  // Detect if device is mobile
   const isMobileDevice = () => {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   };
   
   const handlePrint = async () => {
+    if (isProductionSheetEditMode || isLabelEditMode) {
+      alert('Please save your changes before printing!');
+      return;
+    }
+    
     if (isMobileDevice()) {
       // For mobile devices, generate PDF
       setIsGeneratingPDF(true);
       try {
         const pdf = new jsPDF('p', 'mm', 'a4');
         
-        // Get the content to print
+        // Get content to print
         const printContent = contentRef.current;
         const a4Containers = printContent.querySelectorAll('.a4-container');
         
@@ -30,7 +180,7 @@ const ProductionSheetComponent = () => {
         for (let i = 0; i < a4Containers.length; i++) {
           const container = a4Containers[i];
           
-          // Convert the container to canvas
+          // Convert container to canvas
           const canvas = await html2canvas(container, {
             scale: 2,
             useCORS: true,
@@ -40,7 +190,7 @@ const ProductionSheetComponent = () => {
           
           const imgData = canvas.toDataURL('image/png');
           
-          // Add the image to PDF
+          // Add image to PDF
           if (i > 0) {
             pdf.addPage();
           }
@@ -249,6 +399,58 @@ const ProductionSheetComponent = () => {
                 resize: none;
               }
               
+              /* Signature Styles */
+              .signature-container {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                width: 100%;
+                height: 60px;
+                border: 1px solid #ddd;
+                border-radius: 5px;
+                background-color: #fff;
+                position: relative;
+              }
+              
+              .signature-image {
+                max-height: 50px;
+                max-width: 100%;
+                object-fit: contain;
+              }
+              
+              .signature-placeholder {
+                color: #999;
+                font-style: italic;
+                font-size: 14px;
+              }
+              
+              .signature-input {
+                display: none;
+              }
+              
+              .signature-buttons {
+                position: absolute;
+                top: -25px;
+                right: 0;
+                display: flex;
+                gap: 5px;
+              }
+              
+              .signature-btn {
+                background-color: #f0f0f0;
+                border: 1px solid #ddd;
+                border-radius: 3px;
+                padding: 3px 8px;
+                font-size: 12px;
+                cursor: pointer;
+                color: #666;
+              }
+              
+              .signature-btn:hover {
+                background-color: #e0e0e0;
+              }
+              
               /* Label Sheet Styles */
               .label-sheet {
                 display: grid;
@@ -339,6 +541,14 @@ const ProductionSheetComponent = () => {
                   margin: 0;
                   box-shadow: none;
                 }
+                
+                .info-input, .label-input {
+                  border-bottom: none;
+                }
+                
+                .signature-buttons {
+                  display: none;
+                }
               }
             </style>
           </head>
@@ -359,32 +569,6 @@ const ProductionSheetComponent = () => {
     }
   };
 
-  // Sample order data
-  const orderData = {
-    id: 'ORD-001',
-    customerName: 'John Smith',
-    fullAddress: '23 Principal Street, Apt 45A, New York, 10001',
-    phone: '+1 234-567-8901',
-    email: 'john.smith@example.com',
-    order: {
-      model: 'Comfort Plus',
-      size: 'King - 30cm height',
-      colour: 'Gray',
-      storage: 'With Storage',
-      height: '30cm',
-      quantity: 2
-    },
-    orderDate: '15/05/2023',
-    deliveryDate: '25/05/2023',
-    extras: 'Delivery before 5pm',
-    status: 'In Production',
-    marketplace: 'Amazon',
-    weight: '50kg',
-    shipper: 'SOFA & FURNITURE CO.',
-    shipperAddress: '123 Production Street, London, UK, SW1A 1AA',
-    labelDate: '18/12/2025'
-  };
-
   // Get marketplace icon component
   const getMarketplaceIcon = (marketplace) => {
     const iconProps = { className: 'inline-block' };
@@ -400,7 +584,7 @@ const ProductionSheetComponent = () => {
     }
   };
 
-  const marketplaceIcon = getMarketplaceIcon(orderData.marketplace);
+  const marketplaceIcon = getMarketplaceIcon(savedProductionData.marketplace);
 
   // Sofa image URL
   const sofaImage = "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80";
@@ -444,14 +628,13 @@ const ProductionSheetComponent = () => {
           width: 100%;
           display: flex;
           justify-content: flex-end;
+          gap: 10px;
           margin-bottom: 20px;
           position: sticky;
           top: 20px;
-          // z-index: 100;
         }
         
-        .print-button {
-          background-color: #00B7B5;
+        .print-button, .edit-button, .cancel-button {
           color: white;
           border: none;
           padding: 12px 20px;
@@ -466,19 +649,51 @@ const ProductionSheetComponent = () => {
           transition: all 0.3s ease;
         }
         
+        .print-button {
+          background-color: #00B7B5;
+        }
+        
         .print-button:hover {
           background-color: #009a98;
           transform: translateY(-2px);
           box-shadow: 0 4px 8px rgba(0,0,0,0.2);
         }
         
-        .print-button:disabled {
-          background-color: #7dd3d1;
-          cursor: not-allowed;
-          transform: none;
+        .edit-button {
+          background-color: #FFA500;
         }
         
-        .print-button svg {
+        .edit-button:hover {
+          background-color: #FF8C00;
+          transform: translateY(-2px);
+          box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        
+        .edit-button.editing {
+          background-color: #28a745;
+        }
+        
+        .edit-button.editing:hover {
+          background-color: #218838;
+        }
+        
+        .cancel-button {
+          background-color: #dc3545;
+        }
+        
+        .cancel-button:hover {
+          background-color: #c82333;
+          transform: translateY(-2px);
+          box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        
+        .print-button:disabled, .edit-button:disabled, .cancel-button:disabled {
+          cursor: not-allowed;
+          transform: none;
+          opacity: 0.6;
+        }
+        
+        .print-button svg, .edit-button svg, .cancel-button svg {
           width: 18px;
           height: 18px;
         }
@@ -575,6 +790,22 @@ const ProductionSheetComponent = () => {
           word-wrap: break-word;
         }
         
+        .info-input {
+          flex: 1;
+          border: none;
+          border-bottom: 1px solid #ddd;
+          padding: 2px 4px;
+          font-family: 'Roboto', sans-serif;
+          font-size: 16px;
+          color: #333;
+          background-color: transparent;
+        }
+        
+        .info-input:focus {
+          outline: none;
+          border-bottom-color: #00B7B5;
+        }
+        
         .product-image-container {
           width: 100%;
           height: 200px;
@@ -612,6 +843,58 @@ const ProductionSheetComponent = () => {
           padding: 10px;
           border-radius: 5px;
           resize: none;
+        }
+        
+        /* Signature Styles */
+        .signature-container {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          width: 100%;
+          height: 60px;
+          border: 1px solid #ddd;
+          border-radius: 5px;
+          background-color: #fff;
+          position: relative;
+        }
+        
+        .signature-image {
+          max-height: 50px;
+          max-width: 100%;
+          object-fit: contain;
+        }
+        
+        .signature-placeholder {
+          color: #999;
+          font-style: italic;
+          font-size: 14px;
+        }
+        
+        .signature-input {
+          display: none;
+        }
+        
+        .signature-buttons {
+          position: absolute;
+          top: -25px;
+          right: 0;
+          display: flex;
+          gap: 5px;
+        }
+        
+        .signature-btn {
+          background-color: #f0f0f0;
+          border: 1px solid #ddd;
+          border-radius: 3px;
+          padding: 3px 8px;
+          font-size: 12px;
+          cursor: pointer;
+          color: #666;
+        }
+        
+        .signature-btn:hover {
+          background-color: #e0e0e0;
         }
         
         /* Label Sheet Styles */
@@ -670,6 +953,22 @@ const ProductionSheetComponent = () => {
           word-wrap: break-word;
         }
         
+        .label-input {
+          flex: 1;
+          border: none;
+          border-bottom: 1px solid #ddd;
+          padding: 2px 4px;
+          font-family: 'Roboto', sans-serif;
+          font-size: 14px;
+          color: #333;
+          background-color: transparent;
+        }
+        
+        .label-input:focus {
+          outline: none;
+          border-bottom-color: #00B7B5;
+        }
+        
         .label-product-image {
           max-width: 120px;
           max-height: 120px;
@@ -722,12 +1021,14 @@ const ProductionSheetComponent = () => {
             position: relative;
             top: 0;
             margin-bottom: 15px;
+            flex-wrap: wrap;
           }
           
-          .print-button {
+          .print-button, .edit-button, .cancel-button {
             padding: 10px 15px;
             font-size: 14px;
-            width: 100%;
+            flex: 1;
+            min-width: 120px;
             justify-content: center;
           }
           
@@ -792,7 +1093,7 @@ const ProductionSheetComponent = () => {
         }
         
         @media screen and (max-width: 480px) {
-          .print-button {
+          .print-button, .edit-button, .cancel-button {
             padding: 8px 12px;
             font-size: 12px;
           }
@@ -840,14 +1141,51 @@ const ProductionSheetComponent = () => {
       <div ref={contentRef}>
         {/* Page 1: Single Production Sheet */}
         <div className="a4-container production-sheet">
+          {/* Production Sheet Edit Buttons */}
+          <div className="print-button-container" style={{position: 'absolute', top: '10px', right: '10px', zIndex: 10}}>
+            {isProductionSheetEditMode && (
+              <button 
+                className="cancel-button" 
+                onClick={cancelProductionSheetEdit}
+                disabled={isGeneratingPDF}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Cancel
+              </button>
+            )}
+            <button 
+              className={`edit-button ${isProductionSheetEditMode ? 'editing' : ''}`} 
+              onClick={toggleProductionSheetEditMode}
+              disabled={isGeneratingPDF}
+            >
+              {isProductionSheetEditMode ? (
+                <>
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Save
+                </>
+              ) : (
+                <>
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  Edit
+                </>
+              )}
+            </button>
+          </div>
+          
           <div className="header">
             <div className="logo-section">
               <div className="company-logo">SOFA & FURNITURE CO.</div>
               <div className="marketplace-logo">
-                {marketplaceIcon} {orderData.marketplace}
+                {marketplaceIcon} {savedProductionData.marketplace}
               </div>
             </div>
-            <div className="order-id">{orderData.id}</div>
+            <div className="order-id">{savedProductionData.id}</div>
           </div>
           
           <div className="content">
@@ -856,19 +1194,55 @@ const ProductionSheetComponent = () => {
                 <div className="section-title">Customer Information</div>
                 <div className="info-row">
                   <div className="info-label">Name:</div>
-                  <div className="info-value">{orderData.customerName}</div>
+                  {isProductionSheetEditMode ? (
+                    <input 
+                      type="text" 
+                      className="info-input" 
+                      value={tempProductionData.customerName} 
+                      onChange={(e) => handleProductionInputChange('customerName', e.target.value)}
+                    />
+                  ) : (
+                    <div className="info-value">{savedProductionData.customerName}</div>
+                  )}
                 </div>
                 <div className="info-row">
                   <div className="info-label">Address:</div>
-                  <div className="info-value">{orderData.fullAddress}</div>
+                  {isProductionSheetEditMode ? (
+                    <input 
+                      type="text" 
+                      className="info-input" 
+                      value={tempProductionData.fullAddress} 
+                      onChange={(e) => handleProductionInputChange('fullAddress', e.target.value)}
+                    />
+                  ) : (
+                    <div className="info-value">{savedProductionData.fullAddress}</div>
+                  )}
                 </div>
                 <div className="info-row">
                   <div className="info-label">Phone:</div>
-                  <div className="info-value">{orderData.phone}</div>
+                  {isProductionSheetEditMode ? (
+                    <input 
+                      type="text" 
+                      className="info-input" 
+                      value={tempProductionData.phone} 
+                      onChange={(e) => handleProductionInputChange('phone', e.target.value)}
+                    />
+                  ) : (
+                    <div className="info-value">{savedProductionData.phone}</div>
+                  )}
                 </div>
                 <div className="info-row">
                   <div className="info-label">Email:</div>
-                  <div className="info-value">{orderData.email}</div>
+                  {isProductionSheetEditMode ? (
+                    <input 
+                      type="text" 
+                      className="info-input" 
+                      value={tempProductionData.email} 
+                      onChange={(e) => handleProductionInputChange('email', e.target.value)}
+                    />
+                  ) : (
+                    <div className="info-value">{savedProductionData.email}</div>
+                  )}
                 </div>
               </div>
               
@@ -876,31 +1250,102 @@ const ProductionSheetComponent = () => {
                 <div className="section-title">Order Details</div>
                 <div className="info-row">
                   <div className="info-label">Product Model:</div>
-                  <div className="info-value">{orderData.order.model}</div>
+                  {isProductionSheetEditMode ? (
+                    <input 
+                      type="text" 
+                      className="info-input" 
+                      value={tempProductionData.productModel} 
+                      onChange={(e) => handleProductionInputChange('productModel', e.target.value)}
+                    />
+                  ) : (
+                    <div className="info-value">{savedProductionData.productModel}</div>
+                  )}
                 </div>
                 <div className="info-row">
                   <div className="info-label">Size:</div>
-                  <div className="info-value">{orderData.order.size}</div>
+                  {isProductionSheetEditMode ? (
+                    <input 
+                      type="text" 
+                      className="info-input" 
+                      value={tempProductionData.size} 
+                      onChange={(e) => handleProductionInputChange('size', e.target.value)}
+                    />
+                  ) : (
+                    <div className="info-value">{savedProductionData.size}</div>
+                  )}
                 </div>
                 <div className="info-row">
                   <div className="info-label">Color:</div>
-                  <div className="info-value">{orderData.order.colour}</div>
+                  {isProductionSheetEditMode ? (
+                    <input 
+                      type="text" 
+                      className="info-input" 
+                      value={tempProductionData.colour} 
+                      onChange={(e) => handleProductionInputChange('colour', e.target.value)}
+                    />
+                  ) : (
+                    <div className="info-value">{savedProductionData.colour}</div>
+                  )}
                 </div>
                 <div className="info-row">
                   <div className="info-label">Features:</div>
-                  <div className="info-value">{orderData.order.storage}, {orderData.order.height} Height</div>
+                  {isProductionSheetEditMode ? (
+                    <input 
+                      type="text" 
+                      className="info-input" 
+                      value={`${tempProductionData.storage}, ${tempProductionData.height} Height`} 
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        const parts = value.split(', ');
+                        if (parts.length >= 2) {
+                          handleProductionInputChange('storage', parts[0]);
+                          const heightPart = parts[1];
+                          handleProductionInputChange('height', heightPart.replace(' Height', ''));
+                        }
+                      }}
+                    />
+                  ) : (
+                    <div className="info-value">{savedProductionData.storage}, {savedProductionData.height} Height</div>
+                  )}
                 </div>
                 <div className="info-row">
                   <div className="info-label">Quantity:</div>
-                  <div className="info-value">{orderData.order.quantity}</div>
+                  {isProductionSheetEditMode ? (
+                    <input 
+                      type="number" 
+                      className="info-input" 
+                      value={tempProductionData.quantity} 
+                      onChange={(e) => handleProductionInputChange('quantity', e.target.value)}
+                    />
+                  ) : (
+                    <div className="info-value">{savedProductionData.quantity}</div>
+                  )}
                 </div>
                 <div className="info-row">
                   <div className="info-label">Order Date:</div>
-                  <div className="info-value">{orderData.orderDate}</div>
+                  {isProductionSheetEditMode ? (
+                    <input 
+                      type="text" 
+                      className="info-input" 
+                      value={tempProductionData.orderDate} 
+                      onChange={(e) => handleProductionInputChange('orderDate', e.target.value)}
+                    />
+                  ) : (
+                    <div className="info-value">{savedProductionData.orderDate}</div>
+                  )}
                 </div>
                 <div className="info-row">
                   <div className="info-label">Delivery Date:</div>
-                  <div className="info-value">{orderData.deliveryDate}</div>
+                  {isProductionSheetEditMode ? (
+                    <input 
+                      type="text" 
+                      className="info-input" 
+                      value={tempProductionData.deliveryDate} 
+                      onChange={(e) => handleProductionInputChange('deliveryDate', e.target.value)}
+                    />
+                  ) : (
+                    <div className="info-value">{savedProductionData.deliveryDate}</div>
+                  )}
                 </div>
               </div>
             </div>
@@ -909,13 +1354,21 @@ const ProductionSheetComponent = () => {
               <div className="section">
                 <div className="section-title">Product Image</div>
                 <div className="product-image-container">
-                  <img src={sofaImage} alt={orderData.order.model} className="product-image" />
+                  <img src={sofaImage} alt={savedProductionData.productModel} className="product-image" />
                 </div>
               </div>
               
               <div className="section">
                 <div className="section-title">Extra Notes</div>
-                <textarea className="notes" readOnly value={orderData.extras}></textarea>
+                {isProductionSheetEditMode ? (
+                  <textarea 
+                    className="notes" 
+                    value={tempProductionData.extras} 
+                    onChange={(e) => handleProductionInputChange('extras', e.target.value)}
+                  />
+                ) : (
+                  <textarea className="notes" readOnly value={savedProductionData.extras}></textarea>
+                )}
               </div>
             </div>
           </div>
@@ -927,17 +1380,101 @@ const ProductionSheetComponent = () => {
             </div>
             <div className="footer-section">
               <div className="section-title">Signature</div>
-              <div className="info-value">__________________</div>
+              <div className="signature-container">
+                {isProductionSheetEditMode ? (
+                  <>
+                    {tempProductionData.signature ? (
+                      <img src={tempProductionData.signature} alt="Signature" className="signature-image" />
+                    ) : (
+                      <div className="signature-placeholder">Click to add signature</div>
+                    )}
+                    <input 
+                      type="file" 
+                      className="signature-input" 
+                      accept="image/*"
+                      onChange={handleSignatureUpload}
+                    />
+                    <div className="signature-buttons">
+                      <button 
+                        className="signature-btn" 
+                        onClick={() => document.querySelector('.signature-input').click()}
+                      >
+                        Upload
+                      </button>
+                      {tempProductionData.signature && (
+                        <button 
+                          className="signature-btn" 
+                          onClick={clearSignature}
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  savedProductionData.signature ? (
+                    <img src={savedProductionData.signature} alt="Signature" className="signature-image" />
+                  ) : (
+                    <div className="info-value">__________________</div>
+                  )
+                )}
+              </div>
             </div>
             <div className="footer-section">
               <div className="section-title">Status</div>
-              <div className="info-value">{orderData.status}</div>
+              {isProductionSheetEditMode ? (
+                <input 
+                  type="text" 
+                  className="info-input" 
+                  value={tempProductionData.status} 
+                  onChange={(e) => handleProductionInputChange('status', e.target.value)}
+                />
+              ) : (
+                <div className="info-value">{savedProductionData.status}</div>
+              )}
             </div>
           </div>
         </div>
         
         {/* Page 2: 4 Label Sheet */}
         <div className="a4-container label-sheet">
+          {/* Label Edit Buttons */}
+          <div className="print-button-container" style={{position: 'absolute', top: '10px', right: '10px', zIndex: 10}}>
+            {isLabelEditMode && (
+              <button 
+                className="cancel-button" 
+                onClick={cancelLabelEdit}
+                disabled={isGeneratingPDF}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Cancel
+              </button>
+            )}
+            <button 
+              className={`edit-button ${isLabelEditMode ? 'editing' : ''}`} 
+              onClick={toggleLabelEditMode}
+              disabled={isGeneratingPDF}
+            >
+              {isLabelEditMode ? (
+                <>
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Save
+                </>
+              ) : (
+                <>
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  Edit
+                </>
+              )}
+            </button>
+          </div>
+          
           {[1, 2, 3, 4].map((num) => (
             <div key={num} className="label">
               <div className="label-header">
@@ -947,51 +1484,141 @@ const ProductionSheetComponent = () => {
               <div className="label-content">
                 <div className="label-row">
                   <div className="label-label">Order ID:</div>
-                  <div className="label-value">{orderData.id}</div>
+                  {isLabelEditMode ? (
+                    <input 
+                      type="text" 
+                      className="label-input" 
+                      value={tempLabelData.id} 
+                      onChange={(e) => handleLabelInputChange('id', e.target.value)}
+                    />
+                  ) : (
+                    <div className="label-value">{savedLabelData.id}</div>
+                  )}
                 </div>
                 <div className="label-row">
                   <div className="label-label">Receiver:</div>
-                  <div className="label-value">{orderData.customerName}</div>
+                  {isLabelEditMode ? (
+                    <input 
+                      type="text" 
+                      className="label-input" 
+                      value={tempLabelData.customerName} 
+                      onChange={(e) => handleLabelInputChange('customerName', e.target.value)}
+                    />
+                  ) : (
+                    <div className="label-value">{savedLabelData.customerName}</div>
+                  )}
                 </div>
                 <div className="label-row">
                   <div className="label-label">Address:</div>
-                  <div className="label-value">{orderData.fullAddress}</div>
+                  {isLabelEditMode ? (
+                    <input 
+                      type="text" 
+                      className="label-input" 
+                      value={tempLabelData.fullAddress} 
+                      onChange={(e) => handleLabelInputChange('fullAddress', e.target.value)}
+                    />
+                  ) : (
+                    <div className="label-value">{savedLabelData.fullAddress}</div>
+                  )}
                 </div>
                 <div className="label-row">
                   <div className="label-label">Shipper:</div>
-                  <div className="label-value">{orderData.shipper}</div>
+                  {isLabelEditMode ? (
+                    <input 
+                      type="text" 
+                      className="label-input" 
+                      value={tempLabelData.shipper} 
+                      onChange={(e) => handleLabelInputChange('shipper', e.target.value)}
+                    />
+                  ) : (
+                    <div className="label-value">{savedLabelData.shipper}</div>
+                  )}
                 </div>
                 <div className="label-row">
                   <div className="label-label">Shipper Add:</div>
-                  <div className="label-value">{orderData.shipperAddress}</div>
+                  {isLabelEditMode ? (
+                    <input 
+                      type="text" 
+                      className="label-input" 
+                      value={tempLabelData.shipperAddress} 
+                      onChange={(e) => handleLabelInputChange('shipperAddress', e.target.value)}
+                    />
+                  ) : (
+                    <div className="label-value">{savedLabelData.shipperAddress}</div>
+                  )}
                 </div>
                 <div className="label-row">
                   <div className="label-label">Weight:</div>
-                  <div className="label-value">{orderData.weight}</div>
+                  {isLabelEditMode ? (
+                    <input 
+                      type="text" 
+                      className="label-input" 
+                      value={tempLabelData.weight} 
+                      onChange={(e) => handleLabelInputChange('weight', e.target.value)}
+                    />
+                  ) : (
+                    <div className="label-value">{savedLabelData.weight}</div>
+                  )}
                 </div>
                 <div className="label-row">
                   <div className="label-label">Item:</div>
-                  <div className="label-value">{orderData.order.model}</div>
+                  {isLabelEditMode ? (
+                    <input 
+                      type="text" 
+                      className="label-input" 
+                      value={tempLabelData.item} 
+                      onChange={(e) => handleLabelInputChange('item', e.target.value)}
+                    />
+                  ) : (
+                    <div className="label-value">{savedLabelData.item}</div>
+                  )}
                 </div>
                 <div className="label-row">
                   <div className="label-label">Size:</div>
-                  <div className="label-value">{orderData.order.size}</div>
+                  {isLabelEditMode ? (
+                    <input 
+                      type="text" 
+                      className="label-input" 
+                      value={tempLabelData.size} 
+                      onChange={(e) => handleLabelInputChange('size', e.target.value)}
+                    />
+                  ) : (
+                    <div className="label-value">{savedLabelData.size}</div>
+                  )}
                 </div>
                 <div className="label-row">
                   <div className="label-label">Date:</div>
-                  <div className="label-value">{orderData.labelDate}</div>
+                  {isLabelEditMode ? (
+                    <input 
+                      type="text" 
+                      className="label-input" 
+                      value={tempLabelData.date} 
+                      onChange={(e) => handleLabelInputChange('date', e.target.value)}
+                    />
+                  ) : (
+                    <div className="label-value">{savedLabelData.date}</div>
+                  )}
                 </div>
                 <div className="label-row">
                   <div className="label-label">Notes:</div>
-                  <div className="label-value">{orderData.extras}</div>
+                  {isLabelEditMode ? (
+                    <input 
+                      type="text" 
+                      className="label-input" 
+                      value={tempLabelData.notes} 
+                      onChange={(e) => handleLabelInputChange('notes', e.target.value)}
+                    />
+                  ) : (
+                    <div className="label-value">{savedLabelData.notes}</div>
+                  )}
                 </div>
                 
                 {/* Product Image in Label */}
-                <img src={sofaImage} alt={orderData.order.model} className="label-product-image" />
+                <img src={sofaImage} alt={savedLabelData.item} className="label-product-image" />
                 
                 <div className="barcode">
-                  <img src={generateBarcodeDataURL(orderData.id)} alt="Barcode" />
-                  <div className="barcode-text">{orderData.id}</div>
+                  <img src={generateBarcodeDataURL(savedLabelData.id)} alt="Barcode" />
+                  <div className="barcode-text">{savedLabelData.id}</div>
                 </div>
               </div>
             </div>
