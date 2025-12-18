@@ -9,8 +9,36 @@ import html2canvas from 'html2canvas';
 const ProductionSheetComponent = () => {
   const contentRef = useRef(null);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
   
-  // Detect if the device is mobile
+  // State for editable label data
+  const [labelData, setLabelData] = useState({
+    id: 'ORD-001',
+    customerName: 'John Smith',
+    fullAddress: '23 Principal Street, Apt 45A, New York, 10001',
+    shipper: 'SOFA & FURNITURE CO.',
+    shipperAddress: '123 Production Street, London, UK, SW1A 1AA',
+    weight: '50kg',
+    item: 'Comfort Plus',
+    size: 'King - 30cm height',
+    date: '18/12/2025',
+    notes: 'Delivery before 5pm'
+  });
+  
+  // Handle input changes
+  const handleInputChange = (field, value) => {
+    setLabelData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+  
+  // Toggle edit mode
+  const toggleEditMode = () => {
+    setIsEditMode(!isEditMode);
+  };
+  
+  // Detect if device is mobile
   const isMobileDevice = () => {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   };
@@ -22,7 +50,7 @@ const ProductionSheetComponent = () => {
       try {
         const pdf = new jsPDF('p', 'mm', 'a4');
         
-        // Get the content to print
+        // Get content to print
         const printContent = contentRef.current;
         const a4Containers = printContent.querySelectorAll('.a4-container');
         
@@ -30,7 +58,7 @@ const ProductionSheetComponent = () => {
         for (let i = 0; i < a4Containers.length; i++) {
           const container = a4Containers[i];
           
-          // Convert the container to canvas
+          // Convert container to canvas
           const canvas = await html2canvas(container, {
             scale: 2,
             useCORS: true,
@@ -40,7 +68,7 @@ const ProductionSheetComponent = () => {
           
           const imgData = canvas.toDataURL('image/png');
           
-          // Add the image to PDF
+          // Add image to PDF
           if (i > 0) {
             pdf.addPage();
           }
@@ -305,6 +333,22 @@ const ProductionSheetComponent = () => {
                 word-wrap: break-word;
               }
               
+              .label-input {
+                flex: 1;
+                border: none;
+                border-bottom: 1px solid #ddd;
+                padding: 2px 4px;
+                font-family: 'Roboto', sans-serif;
+                font-size: 14px;
+                color: #333;
+                background-color: transparent;
+              }
+              
+              .label-input:focus {
+                outline: none;
+                border-bottom-color: #00B7B5;
+              }
+              
               .label-product-image {
                 max-width: 120px;
                 max-height: 120px;
@@ -338,6 +382,10 @@ const ProductionSheetComponent = () => {
                 .a4-container {
                   margin: 0;
                   box-shadow: none;
+                }
+                
+                .label-input {
+                  border-bottom: none;
                 }
               }
             </style>
@@ -440,18 +488,17 @@ const ProductionSheetComponent = () => {
           flex-direction: column;
         }
         
-        .print-button-container {
+        .button-container {
           width: 100%;
           display: flex;
           justify-content: flex-end;
+          gap: 10px;
           margin-bottom: 20px;
           position: sticky;
           top: 20px;
-          // z-index: 100;
         }
         
-        .print-button {
-          background-color: #00B7B5;
+        .print-button, .edit-button {
           color: white;
           border: none;
           padding: 12px 20px;
@@ -466,19 +513,41 @@ const ProductionSheetComponent = () => {
           transition: all 0.3s ease;
         }
         
+        .print-button {
+          background-color: #00B7B5;
+        }
+        
         .print-button:hover {
           background-color: #009a98;
           transform: translateY(-2px);
           box-shadow: 0 4px 8px rgba(0,0,0,0.2);
         }
         
-        .print-button:disabled {
-          background-color: #7dd3d1;
-          cursor: not-allowed;
-          transform: none;
+        .edit-button {
+          background-color: #FFA500;
         }
         
-        .print-button svg {
+        .edit-button:hover {
+          background-color: #FF8C00;
+          transform: translateY(-2px);
+          box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        
+        .edit-button.editing {
+          background-color: #28a745;
+        }
+        
+        .edit-button.editing:hover {
+          background-color: #218838;
+        }
+        
+        .print-button:disabled, .edit-button:disabled {
+          cursor: not-allowed;
+          transform: none;
+          opacity: 0.6;
+        }
+        
+        .print-button svg, .edit-button svg {
           width: 18px;
           height: 18px;
         }
@@ -670,6 +739,22 @@ const ProductionSheetComponent = () => {
           word-wrap: break-word;
         }
         
+        .label-input {
+          flex: 1;
+          border: none;
+          border-bottom: 1px solid #ddd;
+          padding: 2px 4px;
+          font-family: 'Roboto', sans-serif;
+          font-size: 14px;
+          color: #333;
+          background-color: transparent;
+        }
+        
+        .label-input:focus {
+          outline: none;
+          border-bottom-color: #00B7B5;
+        }
+        
         .label-product-image {
           max-width: 120px;
           max-height: 120px;
@@ -718,13 +803,14 @@ const ProductionSheetComponent = () => {
             margin-bottom: 30px;
           }
           
-          .print-button-container {
+          .button-container {
             position: relative;
             top: 0;
             margin-bottom: 15px;
+            flex-direction: column;
           }
           
-          .print-button {
+          .print-button, .edit-button {
             padding: 10px 15px;
             font-size: 14px;
             width: 100%;
@@ -792,7 +878,7 @@ const ProductionSheetComponent = () => {
         }
         
         @media screen and (max-width: 480px) {
-          .print-button {
+          .print-button, .edit-button {
             padding: 8px 12px;
             font-size: 12px;
           }
@@ -815,7 +901,28 @@ const ProductionSheetComponent = () => {
         }
       `}</style>
       
-      <div className="print-button-container">
+      <div className="button-container">
+        <button 
+          className={`edit-button ${isEditMode ? 'editing' : ''}`} 
+          onClick={toggleEditMode}
+          disabled={isGeneratingPDF}
+        >
+          {isEditMode ? (
+            <>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              Save
+            </>
+          ) : (
+            <>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              Edit
+            </>
+          )}
+        </button>
         <button 
           className="print-button" 
           onClick={handlePrint}
@@ -839,7 +946,7 @@ const ProductionSheetComponent = () => {
       
       <div ref={contentRef}>
         {/* Page 1: Single Production Sheet */}
-        <div className="a4-container production-sheet">
+        {/* <div className="a4-container production-sheet">
           <div className="header">
             <div className="logo-section">
               <div className="company-logo">SOFA & FURNITURE CO.</div>
@@ -934,7 +1041,7 @@ const ProductionSheetComponent = () => {
               <div className="info-value">{orderData.status}</div>
             </div>
           </div>
-        </div>
+        </div> */}
         
         {/* Page 2: 4 Label Sheet */}
         <div className="a4-container label-sheet">
@@ -947,51 +1054,141 @@ const ProductionSheetComponent = () => {
               <div className="label-content">
                 <div className="label-row">
                   <div className="label-label">Order ID:</div>
-                  <div className="label-value">{orderData.id}</div>
+                  {isEditMode ? (
+                    <input 
+                      type="text" 
+                      className="label-input" 
+                      value={labelData.id} 
+                      onChange={(e) => handleInputChange('id', e.target.value)}
+                    />
+                  ) : (
+                    <div className="label-value">{labelData.id}</div>
+                  )}
                 </div>
                 <div className="label-row">
                   <div className="label-label">Receiver:</div>
-                  <div className="label-value">{orderData.customerName}</div>
+                  {isEditMode ? (
+                    <input 
+                      type="text" 
+                      className="label-input" 
+                      value={labelData.customerName} 
+                      onChange={(e) => handleInputChange('customerName', e.target.value)}
+                    />
+                  ) : (
+                    <div className="label-value">{labelData.customerName}</div>
+                  )}
                 </div>
                 <div className="label-row">
                   <div className="label-label">Address:</div>
-                  <div className="label-value">{orderData.fullAddress}</div>
+                  {isEditMode ? (
+                    <input 
+                      type="text" 
+                      className="label-input" 
+                      value={labelData.fullAddress} 
+                      onChange={(e) => handleInputChange('fullAddress', e.target.value)}
+                    />
+                  ) : (
+                    <div className="label-value">{labelData.fullAddress}</div>
+                  )}
                 </div>
                 <div className="label-row">
                   <div className="label-label">Shipper:</div>
-                  <div className="label-value">{orderData.shipper}</div>
+                  {isEditMode ? (
+                    <input 
+                      type="text" 
+                      className="label-input" 
+                      value={labelData.shipper} 
+                      onChange={(e) => handleInputChange('shipper', e.target.value)}
+                    />
+                  ) : (
+                    <div className="label-value">{labelData.shipper}</div>
+                  )}
                 </div>
                 <div className="label-row">
                   <div className="label-label">Shipper Add:</div>
-                  <div className="label-value">{orderData.shipperAddress}</div>
+                  {isEditMode ? (
+                    <input 
+                      type="text" 
+                      className="label-input" 
+                      value={labelData.shipperAddress} 
+                      onChange={(e) => handleInputChange('shipperAddress', e.target.value)}
+                    />
+                  ) : (
+                    <div className="label-value">{labelData.shipperAddress}</div>
+                  )}
                 </div>
                 <div className="label-row">
                   <div className="label-label">Weight:</div>
-                  <div className="label-value">{orderData.weight}</div>
+                  {isEditMode ? (
+                    <input 
+                      type="text" 
+                      className="label-input" 
+                      value={labelData.weight} 
+                      onChange={(e) => handleInputChange('weight', e.target.value)}
+                    />
+                  ) : (
+                    <div className="label-value">{labelData.weight}</div>
+                  )}
                 </div>
                 <div className="label-row">
                   <div className="label-label">Item:</div>
-                  <div className="label-value">{orderData.order.model}</div>
+                  {isEditMode ? (
+                    <input 
+                      type="text" 
+                      className="label-input" 
+                      value={labelData.item} 
+                      onChange={(e) => handleInputChange('item', e.target.value)}
+                    />
+                  ) : (
+                    <div className="label-value">{labelData.item}</div>
+                  )}
                 </div>
                 <div className="label-row">
                   <div className="label-label">Size:</div>
-                  <div className="label-value">{orderData.order.size}</div>
+                  {isEditMode ? (
+                    <input 
+                      type="text" 
+                      className="label-input" 
+                      value={labelData.size} 
+                      onChange={(e) => handleInputChange('size', e.target.value)}
+                    />
+                  ) : (
+                    <div className="label-value">{labelData.size}</div>
+                  )}
                 </div>
                 <div className="label-row">
                   <div className="label-label">Date:</div>
-                  <div className="label-value">{orderData.labelDate}</div>
+                  {isEditMode ? (
+                    <input 
+                      type="text" 
+                      className="label-input" 
+                      value={labelData.date} 
+                      onChange={(e) => handleInputChange('date', e.target.value)}
+                    />
+                  ) : (
+                    <div className="label-value">{labelData.date}</div>
+                  )}
                 </div>
                 <div className="label-row">
                   <div className="label-label">Notes:</div>
-                  <div className="label-value">{orderData.extras}</div>
+                  {isEditMode ? (
+                    <input 
+                      type="text" 
+                      className="label-input" 
+                      value={labelData.notes} 
+                      onChange={(e) => handleInputChange('notes', e.target.value)}
+                    />
+                  ) : (
+                    <div className="label-value">{labelData.notes}</div>
+                  )}
                 </div>
                 
                 {/* Product Image in Label */}
-                <img src={sofaImage} alt={orderData.order.model} className="label-product-image" />
+                <img src={sofaImage} alt={labelData.item} className="label-product-image" />
                 
                 <div className="barcode">
-                  <img src={generateBarcodeDataURL(orderData.id)} alt="Barcode" />
-                  <div className="barcode-text">{orderData.id}</div>
+                  <img src={generateBarcodeDataURL(labelData.id)} alt="Barcode" />
+                  <div className="barcode-text">{labelData.id}</div>
                 </div>
               </div>
             </div>
