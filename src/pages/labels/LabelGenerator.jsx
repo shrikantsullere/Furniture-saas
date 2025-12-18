@@ -1,29 +1,436 @@
-import { useLocation } from 'react-router-dom';
-import Button from '../../components/common/Button';
-import { mockOrders, placeholderImage } from '../../data/mockOrders';
+import React, { useRef, useState } from 'react';
 import { generateBarcodeDataURL } from '../../utils/barcode';
 import { FaAmazon, FaEbay } from 'react-icons/fa';
 import { SiShopify } from 'react-icons/si';
 import { MdInventory } from 'react-icons/md';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 const LabelGenerator = () => {
-  const location = useLocation();
-  const orderData = location.state?.order || mockOrders[0];
-
-  // Handle print for Delivery Note & Labels combined
-  const handlePrint = () => {
-    try {
-      // Validate required data
-      if (!orderData || !orderData.customerName || !orderData.id) {
-        alert('Error: Missing order data. Please ensure all required fields are filled.');
-        return;
+  const contentRef = useRef(null);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  
+  // State for editable label data
+  const [labelData, setLabelData] = useState({
+    id: 'ORD-001',
+    customerName: 'John Smith',
+    fullAddress: '23 Principal Street, Apt 45A, New York, 10001',
+    shipper: 'SOFA & FURNITURE CO.',
+    shipperAddress: '123 Production Street, London, UK, SW1A 1AA',
+    weight: '50kg',
+    item: 'Comfort Plus',
+    size: 'King - 30cm height',
+    date: '18/12/2025',
+    notes: 'Delivery before 5pm'
+  });
+  
+  // Handle input changes
+  const handleInputChange = (field, value) => {
+    setLabelData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+  
+  // Toggle edit mode
+  const toggleEditMode = () => {
+    setIsEditMode(!isEditMode);
+  };
+  
+  // Detect if device is mobile
+  const isMobileDevice = () => {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  };
+  
+  const handlePrint = async () => {
+    if (isMobileDevice()) {
+      // For mobile devices, generate PDF
+      setIsGeneratingPDF(true);
+      try {
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        
+        // Get content to print
+        const printContent = contentRef.current;
+        const a4Containers = printContent.querySelectorAll('.a4-container');
+        
+        // Process each A4 container
+        for (let i = 0; i < a4Containers.length; i++) {
+          const container = a4Containers[i];
+          
+          // Convert container to canvas
+          const canvas = await html2canvas(container, {
+            scale: 2,
+            useCORS: true,
+            allowTaint: true,
+            backgroundColor: '#ffffff'
+          });
+          
+          const imgData = canvas.toDataURL('image/png');
+          
+          // Add image to PDF
+          if (i > 0) {
+            pdf.addPage();
+          }
+          
+          const imgWidth = 210; // A4 width in mm
+          const pageHeight = 297; // A4 height in mm
+          const imgHeight = (canvas.height * imgWidth) / canvas.width;
+          let heightLeft = imgHeight;
+          let position = 0;
+          
+          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+          heightLeft -= pageHeight;
+          
+          while (heightLeft >= 0) {
+            position = heightLeft - imgHeight;
+            pdf.addPage();
+            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+            heightLeft -= pageHeight;
+          }
+        }
+        
+        // Save the PDF
+        pdf.save(`production-sheet-${new Date().getTime()}.pdf`);
+      } catch (error) {
+        console.error('Error generating PDF:', error);
+        alert('Failed to generate PDF. Please try again.');
+      } finally {
+        setIsGeneratingPDF(false);
       }
+    } else {
+      // For desktop devices, use the original print functionality
+      const printContent = contentRef.current;
       
-      window.print();
-    } catch (error) {
-      console.error('Print error:', error);
-      alert('An error occurred while printing. Please try again.');
+      // Create a new window for printing
+      const printWindow = window.open('', '_blank');
+      
+      // Copy the content to the new window
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Production Sheets</title>
+            <style>
+              @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
+              
+              * {
+                font-family: 'Roboto', sans-serif;
+                box-sizing: border-box;
+              }
+              
+              body {
+                margin: 0;
+                padding: 0;
+                background-color: white;
+              }
+              
+              .production-container {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+              }
+              
+              .a4-container {
+                width: 210mm;
+                min-height: 297mm;
+                background-color: white;
+                padding: 20mm;
+                position: relative;
+                display: flex;
+                flex-direction: column;
+                page-break-after: always;
+              }
+              
+              .a4-container:last-child {
+                page-break-after: auto;
+              }
+              
+              /* Production Sheet Styles */
+              .production-sheet {
+                margin-bottom: 30px;
+              }
+              
+              .header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                border-bottom: 2px solid #00B7B5;
+                padding-bottom: 15px;
+                margin-bottom: 20px;
+              }
+              
+              .logo-section {
+                display: flex;
+                align-items: center;
+              }
+              
+              .company-logo {
+                font-size: 22px;
+                font-weight: 700;
+                color: #00B7B5;
+                margin-right: 20px;
+              }
+              
+              .marketplace-logo {
+                font-size: 16px;
+                color: #666;
+                padding: 5px 10px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                display: flex;
+                align-items: center;
+                gap: 5px;
+              }
+              
+              .order-id {
+                font-size: 24px;
+                font-weight: 700;
+                color: #333;
+              }
+              
+              .content {
+                display: flex;
+                gap: 20px;
+                margin-bottom: 20px;
+                flex-grow: 1;
+              }
+              
+              .left-column {
+                flex: 1;
+              }
+              
+              .right-column {
+                flex: 1;
+              }
+              
+              .section {
+                margin-bottom: 25px;
+                border: 1px solid #ddd;
+                padding: 15px;
+                border-radius: 5px;
+              }
+              
+              .section-title {
+                font-size: 18px;
+                font-weight: 700;
+                margin-bottom: 15px;
+                color: #00B7B5;
+                border-bottom: 1px solid #eee;
+                padding-bottom: 8px;
+              }
+              
+              .info-row {
+                display: flex;
+                margin-bottom: 10px;
+              }
+              
+              .info-label {
+                font-weight: 500;
+                width: 150px;
+                color: #555;
+                flex-shrink: 0;
+              }
+              
+              .info-value {
+                flex: 1;
+                color: #333;
+                word-wrap: break-word;
+              }
+              
+              .product-image-container {
+                width: 100%;
+                height: 200px;
+                border: 1px solid #ddd;
+                border-radius: 5px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                overflow: hidden;
+                margin-bottom: 15px;
+              }
+              
+              .product-image {
+                max-width: 100%;
+                max-height: 100%;
+                object-fit: contain;
+              }
+              
+              .footer {
+                display: flex;
+                justify-content: space-between;
+                border-top: 2px solid #00B7B5;
+                padding-top: 15px;
+                margin-top: auto;
+              }
+              
+              .footer-section {
+                width: 30%;
+              }
+              
+              .notes {
+                width: 100%;
+                height: 100px;
+                border: 1px solid #ddd;
+                padding: 10px;
+                border-radius: 5px;
+                resize: none;
+              }
+              
+              /* Label Sheet Styles */
+              .label-sheet {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                grid-template-rows: 1fr 1fr;
+                gap: 10px;
+                height: 100%;
+              }
+              
+              .label {
+                border: 2px dashed #ccc;
+                padding: 15px;
+                display: flex;
+                flex-direction: column;
+                position: relative;
+              }
+              
+              .label-header {
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 10px;
+                border-bottom: 1px solid #eee;
+                padding-bottom: 5px;
+              }
+              
+              .label-title {
+                font-weight: 700;
+                font-size: 16px;
+                color: #00B7B5;
+              }
+              
+              .label-content {
+                flex-grow: 1;
+                display: flex;
+                flex-direction: column;
+              }
+              
+              .label-row {
+                display: flex;
+                margin-bottom: 5px;
+                font-size: 14px;
+              }
+              
+              .label-label {
+                font-weight: 500;
+                width: 80px;
+                color: #555;
+                flex-shrink: 0;
+              }
+              
+              .label-value {
+                flex: 1;
+                color: #333;
+                word-wrap: break-word;
+              }
+              
+              .label-input {
+                flex: 1;
+                border: none;
+                border-bottom: 1px solid #ddd;
+                padding: 2px 4px;
+                font-family: 'Roboto', sans-serif;
+                font-size: 14px;
+                color: #333;
+                background-color: transparent;
+              }
+              
+              .label-input:focus {
+                outline: none;
+                border-bottom-color: #00B7B5;
+              }
+              
+              .label-product-image {
+                max-width: 120px;
+                max-height: 120px;
+                border: 1px solid #ddd;
+                border-radius: 5px;
+                margin: 10px auto;
+                align-self: center;
+                object-fit: contain;
+              }
+              
+              .barcode {
+                margin-top: auto;
+                text-align: center;
+              }
+              
+              .barcode img {
+                height: 40px;
+              }
+              
+              .barcode-text {
+                font-size: 12px;
+                color: #666;
+              }
+              
+              @media print {
+                body {
+                  margin: 0;
+                  padding: 0;
+                }
+                
+                .a4-container {
+                  margin: 0;
+                  box-shadow: none;
+                }
+                
+                .label-input {
+                  border-bottom: none;
+                }
+              }
+            </style>
+          </head>
+          <body>
+            ${printContent.innerHTML}
+          </body>
+        </html>
+      `);
+      
+      printWindow.document.close();
+      
+      // Wait for the content to load before printing
+      printWindow.onload = function() {
+        printWindow.focus();
+        printWindow.print();
+        printWindow.close();
+      };
     }
+  };
+
+  // Sample order data
+  const orderData = {
+    id: 'ORD-001',
+    customerName: 'John Smith',
+    fullAddress: '23 Principal Street, Apt 45A, New York, 10001',
+    phone: '+1 234-567-8901',
+    email: 'john.smith@example.com',
+    order: {
+      model: 'Comfort Plus',
+      size: 'King - 30cm height',
+      colour: 'Gray',
+      storage: 'With Storage',
+      height: '30cm',
+      quantity: 2
+    },
+    orderDate: '15/05/2023',
+    deliveryDate: '25/05/2023',
+    extras: 'Delivery before 5pm',
+    status: 'In Production',
+    marketplace: 'Amazon',
+    weight: '50kg',
+    shipper: 'SOFA & FURNITURE CO.',
+    shipperAddress: '123 Production Street, London, UK, SW1A 1AA',
+    labelDate: '18/12/2025'
   };
 
   // Get marketplace icon component
@@ -40,306 +447,755 @@ const LabelGenerator = () => {
         return <MdInventory {...iconProps} />;
     }
   };
+
   const marketplaceIcon = getMarketplaceIcon(orderData.marketplace);
-  
+
   // Sofa image URL
   const sofaImage = "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80";
 
-  // Company/From address (default)
-  const fromAddress = {
-    name: 'Bed & Mattress Co.',
-    addressLine1: '123 Production Street',
-    addressLine2: 'London, UK',
-    postcode: 'SW1A 1AA',
-  };
-
-  // Label data (4 identical labels)
-  const labelData = {
-    shipTo: {
-      name: orderData.customerName,
-      addressLine1: orderData.addressLine1 || orderData.fullAddress?.split(',')[0] || orderData.fullAddress,
-      addressLine2: orderData.addressLine2 || orderData.fullAddress?.split(',').slice(1).join(',') || '',
-      postcode: orderData.postcode,
-    },
-    from: fromAddress,
-    orderId: orderData.id,
-    weight: `${(orderData.order?.quantity || 1) * 25}kg`,
-    dimensions: `${orderData.order?.size || 'Standard'} - ${orderData.order?.height || 'Standard'} height`,
-    shippingDate: new Date().toLocaleDateString('en-GB', { 
-      day: '2-digit', 
-      month: '2-digit', 
-      year: 'numeric' 
-    }),
-    remarks: orderData.extras || 'Standard delivery',
-    productImage: orderData.productImage || sofaImage || placeholderImage,
-    productName: orderData.order?.model || orderData.order?.productName || 'Product',
-  };
-
-  // Delivery Note Sheet Component - Optimized for A4 printing
-  const DeliveryNoteSheet = ({ order, icon, image }) => (
-    <div className="bg-white" style={{ width: '190mm', minHeight: '277mm', padding: '10mm', fontFamily: 'Arial, sans-serif', fontSize: '12pt', boxSizing: 'border-box' }}>
-      {/* Header */}
-      <div className="border-b-2 border-gray-300 pb-4 mb-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <div className="text-2xl font-bold text-primary mb-2">
-              SOFA & FURNITURE CO.
-            </div>
-            <div className="text-sm text-gray-600">
-              123 Production Street, London, UK
-            </div>
-          </div>
-          <div className="text-right flex items-center gap-3">
-            <div>
-              <div className="text-lg font-semibold text-gray-900">
-                Order ID: {order.id}
-              </div>
-              <div className="text-sm text-gray-600 mt-1 flex items-center gap-1">
-                <span>{icon}</span>
-                {order.marketplace}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Customer Info Block */}
-      <div className="mb-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-3 border-b border-gray-200 pb-2">
-          Customer Information
-        </h2>
-        <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-          <p className="text-base"><span className="font-medium">Full Name:</span> {order.customerName}</p>
-          <p className="text-base"><span className="font-medium">Full Address:</span> {order.fullAddress}</p>
-          <p className="text-base"><span className="font-medium">Postcode:</span> {order.postcode}</p>
-          <p className="text-base"><span className="font-medium">Email:</span> {order.email}</p>
-          <p className="text-base"><span className="font-medium">Phone:</span> {order.phone}</p>
-        </div>
-      </div>
-
-      {/* Order Details Block */}
-      <div className="mb-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-3 border-b border-gray-200 pb-2">
-          Order Details
-        </h2>
-        <div className="flex gap-4 mb-4">
-          <div className="w-1/3">
-            <img src={image} alt={order.order?.model || 'Product'} className="w-full h-48 object-cover rounded-lg border border-gray-300" />
-            <p className="text-sm text-center mt-2 font-medium">{order.order?.model || 'Product'}</p>
-          </div>
-          <div className="w-2/3 bg-gray-50 rounded-lg p-4 space-y-2">
-            <p className="text-base"><span className="font-medium">Model:</span> {order.order?.model || 'N/A'}</p>
-            <p className="text-base"><span className="font-medium">Size:</span> {order.order?.size || 'N/A'}</p>
-            <p className="text-base"><span className="font-medium">Colour:</span> {order.order?.colour || 'N/A'}</p>
-            <p className="text-base"><span className="font-medium">Material:</span> {order.order?.storage || 'Premium Fabric'}</p>
-            <p className="text-base"><span className="font-medium">Height:</span> {order.order?.height || 'N/A'}</p>
-            <p className="text-base"><span className="font-medium">Quantity:</span> {order.order?.quantity || '1'}</p>
-          </div>
-        </div>
-        <div>
-          <h3 className="text-base font-semibold text-gray-900 mb-2">EXTRA NOTES</h3>
-          <div className="border-2 border-gray-300 rounded-lg p-4 min-h-[200px] bg-white">
-            <p className="text-sm text-gray-600 whitespace-pre-wrap">{order.extras || 'Add any additional notes here...'}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Footer */}
-      <div className="mt-8 pt-6 border-t-2 border-gray-300">
-        <div className="flex justify-between mb-4">
-          <div>
-            <p className="text-sm text-gray-600"><span className="font-medium">Date Generated:</span> {new Date().toLocaleDateString('en-GB')}</p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-600">
-              <span className="font-medium">Status:</span>{' '}
-              <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${order.status === 'Completed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                {order.status || 'Pending'}
-              </span>
-            </p>
-          </div>
-        </div>
-        <div className="mt-6">
-          <p className="text-sm font-medium text-gray-900 mb-2">Production Signature:</p>
-          <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 min-h-[60px]"></div>
-        </div>
-      </div>
-    </div>
-  );
-
-  // Single Label Component - Optimized for A4 printing (4 per page)
-  const Label = ({ data }) => (
-    <div className="border-2 border-gray-900 rounded p-2 flex flex-col justify-between h-full bg-white" style={{ fontFamily: 'Arial, sans-serif', fontSize: '9pt', overflow: 'hidden' }}>
-      <div className="mb-2">
-        <div className="text-xs font-bold mb-1 uppercase text-gray-700">Product:</div>
-        <div className="flex items-start space-x-1">
-          <img src={data.productImage} alt={data.productName} className="w-12 h-12 object-cover rounded border border-gray-300 flex-shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-bold truncate">{data.productName}</p>
-            <p className="text-xs text-gray-600">ID: {data.orderId}</p>
-          </div>
-        </div>
-      </div>
-      <div className="mb-2">
-        <div className="text-xs font-bold mb-0.5 uppercase text-gray-700">SHIP TO:</div>
-        <div className="text-xs">
-          <p className="font-bold leading-tight">{data.shipTo.name}</p>
-          <p className="text-xs leading-tight">{data.shipTo.addressLine1}</p>
-          <p className="text-xs leading-tight">{data.shipTo.addressLine2}, {data.shipTo.postcode}</p>
-        </div>
-      </div>
-      <div className="mb-2 border-t border-gray-300 pt-1">
-        <div className="text-xs font-bold mb-0.5 uppercase text-gray-700">FROM:</div>
-        <div className="text-xs">
-          <p className="font-bold leading-tight">{data.from.name}</p>
-          <p className="text-xs leading-tight">{data.from.addressLine1}</p>
-          <p className="text-xs leading-tight">{data.from.addressLine2}, {data.from.postcode}</p>
-        </div>
-      </div>
-      <div className="mb-2 border-t border-gray-300 pt-1">
-        <div className="text-xs font-bold mb-0.5 uppercase text-gray-700">Order Details:</div>
-        <div className="text-xs space-y-0">
-          <p className="leading-tight"><span className="font-semibold">Weight:</span> {data.weight}</p>
-          <p className="leading-tight"><span className="font-semibold">Dimensions:</span> {data.dimensions}</p>
-          <p className="leading-tight"><span className="font-semibold">Date:</span> {data.shippingDate}</p>
-          <p className="leading-tight"><span className="font-semibold">Remarks:</span> {data.remarks}</p>
-        </div>
-      </div>
-      <div className="mt-auto border-t border-gray-300 pt-1">
-        <div className="flex flex-col items-center">
-          <img src={generateBarcodeDataURL(data.orderId)} alt={`Barcode ${data.orderId}`} className="h-8 w-full object-contain" />
-          <p className="text-xs font-mono mt-0.5 leading-tight">{data.orderId}</p>
-        </div>
-      </div>
-    </div>
-  );
-
   return (
-    <>
-      {/* Special CSS for printing */}
+    <div className="production-container">
       <style>{`
-        @media screen {
-          .print-area-wrapper {
-            position: absolute !important;
-            left: -9999px !important;
-            top: 0 !important;
-            visibility: hidden !important;
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
+        
+        * {
+          font-family: 'Roboto', sans-serif;
+          box-sizing: border-box;
+        }
+        
+        body {
+          margin: 0;
+          padding: 20px;
+          background-color: #f5f5f5;
+        }
+        
+        .production-container {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 30px;
+          position: relative;
+        }
+        
+        .a4-container {
+          width: 210mm;
+          min-height: 297mm;
+          background-color: white;
+          box-shadow: 0 0 10px rgba(0,0,0,0.1);
+          padding: 20mm;
+          position: relative;
+          display: flex;
+          flex-direction: column;
+        }
+        
+        .button-container {
+          width: 100%;
+          display: flex;
+          justify-content: flex-end;
+          gap: 10px;
+          margin-bottom: 20px;
+          position: sticky;
+          top: 20px;
+        }
+        
+        .print-button, .edit-button {
+          color: white;
+          border: none;
+          padding: 12px 20px;
+          border-radius: 4px;
+          cursor: pointer;
+          font-weight: 500;
+          box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+          font-size: 16px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          transition: all 0.3s ease;
+        }
+        
+        .print-button {
+          background-color: #00B7B5;
+        }
+        
+        .print-button:hover {
+          background-color: #009a98;
+          transform: translateY(-2px);
+          box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        
+        .edit-button {
+          background-color: #FFA500;
+        }
+        
+        .edit-button:hover {
+          background-color: #FF8C00;
+          transform: translateY(-2px);
+          box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        
+        .edit-button.editing {
+          background-color: #28a745;
+        }
+        
+        .edit-button.editing:hover {
+          background-color: #218838;
+        }
+        
+        .print-button:disabled, .edit-button:disabled {
+          cursor: not-allowed;
+          transform: none;
+          opacity: 0.6;
+        }
+        
+        .print-button svg, .edit-button svg {
+          width: 18px;
+          height: 18px;
+        }
+        
+        /* Production Sheet Styles */
+        .production-sheet {
+          margin-bottom: 30px;
+        }
+        
+        .header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          border-bottom: 2px solid #00B7B5;
+          padding-bottom: 15px;
+          margin-bottom: 20px;
+        }
+        
+        .logo-section {
+          display: flex;
+          align-items: center;
+        }
+        
+        .company-logo {
+          font-size: 22px;
+          font-weight: 700;
+          color: #00B7B5;
+          margin-right: 20px;
+        }
+        
+        .marketplace-logo {
+          font-size: 16px;
+          color: #666;
+          padding: 5px 10px;
+          border: 1px solid #ddd;
+          border-radius: 4px;
+          display: flex;
+          align-items: center;
+          gap: 5px;
+        }
+        
+        .order-id {
+          font-size: 24px;
+          font-weight: 700;
+          color: #333;
+        }
+        
+        .content {
+          display: flex;
+          gap: 20px;
+          margin-bottom: 20px;
+          flex-grow: 1;
+        }
+        
+        .left-column {
+          flex: 1;
+        }
+        
+        .right-column {
+          flex: 1;
+        }
+        
+        .section {
+          margin-bottom: 25px;
+          border: 1px solid #ddd;
+          padding: 15px;
+          border-radius: 5px;
+        }
+        
+        .section-title {
+          font-size: 18px;
+          font-weight: 700;
+          margin-bottom: 15px;
+          color: #00B7B5;
+          border-bottom: 1px solid #eee;
+          padding-bottom: 8px;
+        }
+        
+        .info-row {
+          display: flex;
+          margin-bottom: 10px;
+        }
+        
+        .info-label {
+          font-weight: 500;
+          width: 150px;
+          color: #555;
+          flex-shrink: 0;
+        }
+        
+        .info-value {
+          flex: 1;
+          color: #333;
+          word-wrap: break-word;
+        }
+        
+        .product-image-container {
+          width: 100%;
+          height: 200px;
+          border: 1px solid #ddd;
+          border-radius: 5px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          overflow: hidden;
+          margin-bottom: 15px;
+        }
+        
+        .product-image {
+          max-width: 100%;
+          max-height: 100%;
+          object-fit: contain;
+        }
+        
+        .footer {
+          display: flex;
+          justify-content: space-between;
+          border-top: 2px solid #00B7B5;
+          padding-top: 15px;
+          margin-top: auto;
+        }
+        
+        .footer-section {
+          width: 30%;
+        }
+        
+        .notes {
+          width: 100%;
+          height: 100px;
+          border: 1px solid #ddd;
+          padding: 10px;
+          border-radius: 5px;
+          resize: none;
+        }
+        
+        /* Label Sheet Styles */
+        .label-sheet {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          grid-template-rows: 1fr 1fr;
+          gap: 10px;
+          height: 100%;
+        }
+        
+        .label {
+          border: 2px dashed #ccc;
+          padding: 15px;
+          display: flex;
+          flex-direction: column;
+          position: relative;
+        }
+        
+        .label-header {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 10px;
+          border-bottom: 1px solid #eee;
+          padding-bottom: 5px;
+        }
+        
+        .label-title {
+          font-weight: 700;
+          font-size: 16px;
+          color: #00B7B5;
+        }
+        
+        .label-content {
+          flex-grow: 1;
+          display: flex;
+          flex-direction: column;
+        }
+        
+        .label-row {
+          display: flex;
+          margin-bottom: 5px;
+          font-size: 14px;
+        }
+        
+        .label-label {
+          font-weight: 500;
+          width: 80px;
+          color: #555;
+          flex-shrink: 0;
+        }
+        
+        .label-value {
+          flex: 1;
+          color: #333;
+          word-wrap: break-word;
+        }
+        
+        .label-input {
+          flex: 1;
+          border: none;
+          border-bottom: 1px solid #ddd;
+          padding: 2px 4px;
+          font-family: 'Roboto', sans-serif;
+          font-size: 14px;
+          color: #333;
+          background-color: transparent;
+        }
+        
+        .label-input:focus {
+          outline: none;
+          border-bottom-color: #00B7B5;
+        }
+        
+        .label-product-image {
+          max-width: 120px;
+          max-height: 120px;
+          border: 1px solid #ddd;
+          border-radius: 5px;
+          margin: 10px auto;
+          align-self: center;
+          object-fit: contain;
+        }
+        
+        .barcode {
+          margin-top: auto;
+          text-align: center;
+        }
+        
+        .barcode img {
+          height: 40px;
+        }
+        
+        .barcode-text {
+          font-size: 12px;
+          color: #666;
+        }
+        
+        /* Mobile Responsive Styles */
+        @media screen and (max-width: 1200px) {
+          .a4-container {
+            transform: scale(0.8);
+            transform-origin: top center;
+            margin-bottom: -50px;
           }
         }
-        @media print {
-          @page {
-            size: A4;
-            margin: 10mm;
+        
+        @media screen and (max-width: 768px) {
+          body {
+            padding: 10px;
           }
-          * {
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
+          
+          .a4-container {
+            width: 100%;
+            min-height: auto;
+            padding: 15px;
+            box-shadow: none;
+            border: 1px solid #ddd;
+            transform: none;
+            margin-bottom: 30px;
           }
-          /* Hide everything except print content */
-          body * {
-            visibility: hidden;
+          
+          .button-container {
+            position: relative;
+            top: 0;
+            margin-bottom: 15px;
+            flex-direction: column;
           }
-          /* Show print wrapper and all its content */
-          .print-area-wrapper {
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 100% !important;
-            display: block !important;
-            visibility: visible !important;
+          
+          .print-button, .edit-button {
+            padding: 10px 15px;
+            font-size: 14px;
+            width: 100%;
+            justify-content: center;
           }
-          .print-area-wrapper,
-          .print-area-wrapper *,
-          .print-area-wrapper img,
-          .print-area-wrapper p,
-          .print-area-wrapper div,
-          .print-area-wrapper span,
-          .print-area-wrapper h1,
-          .print-area-wrapper h2,
-          .print-area-wrapper h3 {
-            visibility: visible !important;
+          
+          .header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
           }
-          /* Ensure containers are visible */
-          .print-container {
-            display: block !important;
-            visibility: visible !important;
-            page-break-after: always;
-            page-break-inside: avoid;
+          
+          .logo-section {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
           }
-          .print-container:last-child {
-            page-break-after: auto;
+          
+          .order-id {
+            font-size: 20px;
           }
-          /* Preserve layouts */
-          .print-area-wrapper div[style*="grid"] {
-            display: grid !important;
-            visibility: visible !important;
+          
+          .content {
+            flex-direction: column;
+            gap: 15px;
           }
-          .print-area-wrapper div[style*="flex"] {
-            display: flex !important;
-            visibility: visible !important;
+          
+          .info-row {
+            flex-direction: column;
           }
-          /* Hide screen content */
-          .screen-content {
-            display: none !important;
-            visibility: hidden !important;
+          
+          .info-label {
+            width: 100%;
+            margin-bottom: 4px;
+          }
+          
+          .footer {
+            flex-direction: column;
+            gap: 15px;
+          }
+          
+          .footer-section {
+            width: 100%;
+          }
+          
+          .label-sheet {
+            grid-template-columns: 1fr;
+            grid-template-rows: repeat(4, auto);
+            gap: 15px;
+            height: auto;
+          }
+          
+          .label {
+            min-height: 350px;
+          }
+          
+          .product-image-container {
+            height: 150px;
+          }
+          
+          .label-product-image {
+            max-width: 100px;
+            max-height: 100px;
+          }
+        }
+        
+        @media screen and (max-width: 480px) {
+          .print-button, .edit-button {
+            padding: 8px 12px;
+            font-size: 12px;
+          }
+          
+          .company-logo {
+            font-size: 18px;
+          }
+          
+          .order-id {
+            font-size: 18px;
+          }
+          
+          .section-title {
+            font-size: 16px;
+          }
+          
+          .info-label, .info-value {
+            font-size: 14px;
           }
         }
       `}</style>
-
-      {/* Screen-only content */}
-      <div className="screen-content space-y-4 sm:space-y-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Label Generator</h1>
-            <p className="text-sm sm:text-base text-gray-600 mt-1">Generate delivery note and labels for printing</p>
+      
+      <div className="button-container">
+        <button 
+          className={`edit-button ${isEditMode ? 'editing' : ''}`} 
+          onClick={toggleEditMode}
+          disabled={isGeneratingPDF}
+        >
+          {isEditMode ? (
+            <>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              Save
+            </>
+          ) : (
+            <>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              Edit
+            </>
+          )}
+        </button>
+        <button 
+          className="print-button" 
+          onClick={handlePrint}
+          disabled={isGeneratingPDF}
+        >
+          {isGeneratingPDF ? (
+            <>
+              <div className="spinner"></div>
+              Generating PDF...
+            </>
+          ) : (
+            <>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+              </svg>
+              {isMobileDevice() ? 'Download PDF' : 'Print'}
+            </>
+          )}
+        </button>
+      </div>
+      
+      <div ref={contentRef}>
+        {/* Page 1: Single Production Sheet */}
+        {/* <div className="a4-container production-sheet">
+          <div className="header">
+            <div className="logo-section">
+              <div className="company-logo">SOFA & FURNITURE CO.</div>
+              <div className="marketplace-logo">
+                {marketplaceIcon} {orderData.marketplace}
+              </div>
+            </div>
+            <div className="order-id">{orderData.id}</div>
           </div>
-          <Button variant="primary" onClick={handlePrint} className="w-full sm:w-auto min-h-[44px]">
-            Print Delivery Note & Labels
-          </Button>
-        </div>
-
-        {/* Screen Preview - Delivery Note */}
-        <div className="bg-white shadow-lg mx-auto p-4 sm:p-6 md:p-8" style={{ maxWidth: '900px' }}>
-          <DeliveryNoteSheet order={orderData} icon={marketplaceIcon} image={sofaImage} />
-        </div>
-
-        {/* Screen Preview - Labels */}
-        <div className="bg-white shadow-lg p-2 sm:p-4 mx-auto" style={{ maxWidth: '900px' }}>
-          <h3 className="text-base sm:text-lg font-semibold mb-2 sm:mb-4 text-center">Label Preview (4 Labels per A4)</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
-            <Label data={labelData} />
-            <Label data={labelData} />
-            <Label data={labelData} />
-            <Label data={labelData} />
+          
+          <div className="content">
+            <div className="left-column">
+              <div className="section">
+                <div className="section-title">Customer Information</div>
+                <div className="info-row">
+                  <div className="info-label">Name:</div>
+                  <div className="info-value">{orderData.customerName}</div>
+                </div>
+                <div className="info-row">
+                  <div className="info-label">Address:</div>
+                  <div className="info-value">{orderData.fullAddress}</div>
+                </div>
+                <div className="info-row">
+                  <div className="info-label">Phone:</div>
+                  <div className="info-value">{orderData.phone}</div>
+                </div>
+                <div className="info-row">
+                  <div className="info-label">Email:</div>
+                  <div className="info-value">{orderData.email}</div>
+                </div>
+              </div>
+              
+              <div className="section">
+                <div className="section-title">Order Details</div>
+                <div className="info-row">
+                  <div className="info-label">Product Model:</div>
+                  <div className="info-value">{orderData.order.model}</div>
+                </div>
+                <div className="info-row">
+                  <div className="info-label">Size:</div>
+                  <div className="info-value">{orderData.order.size}</div>
+                </div>
+                <div className="info-row">
+                  <div className="info-label">Color:</div>
+                  <div className="info-value">{orderData.order.colour}</div>
+                </div>
+                <div className="info-row">
+                  <div className="info-label">Features:</div>
+                  <div className="info-value">{orderData.order.storage}, {orderData.order.height} Height</div>
+                </div>
+                <div className="info-row">
+                  <div className="info-label">Quantity:</div>
+                  <div className="info-value">{orderData.order.quantity}</div>
+                </div>
+                <div className="info-row">
+                  <div className="info-label">Order Date:</div>
+                  <div className="info-value">{orderData.orderDate}</div>
+                </div>
+                <div className="info-row">
+                  <div className="info-label">Delivery Date:</div>
+                  <div className="info-value">{orderData.deliveryDate}</div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="right-column">
+              <div className="section">
+                <div className="section-title">Product Image</div>
+                <div className="product-image-container">
+                  <img src={sofaImage} alt={orderData.order.model} className="product-image" />
+                </div>
+              </div>
+              
+              <div className="section">
+                <div className="section-title">Extra Notes</div>
+                <textarea className="notes" readOnly value={orderData.extras}></textarea>
+              </div>
+            </div>
           </div>
+          
+          <div className="footer">
+            <div className="footer-section">
+              <div className="section-title">Date</div>
+              <div className="info-value">{new Date().toLocaleDateString('en-GB')}</div>
+            </div>
+            <div className="footer-section">
+              <div className="section-title">Signature</div>
+              <div className="info-value">__________________</div>
+            </div>
+            <div className="footer-section">
+              <div className="section-title">Status</div>
+              <div className="info-value">{orderData.status}</div>
+            </div>
+          </div>
+        </div> */}
+        
+        {/* Page 2: 4 Label Sheet */}
+        <div className="a4-container label-sheet">
+          {[1, 2, 3, 4].map((num) => (
+            <div key={num} className="label">
+              <div className="label-header">
+                <div className="label-title">Label {num}</div>
+                <div className="company-logo">SOFA & FURNITURE</div>
+              </div>
+              <div className="label-content">
+                <div className="label-row">
+                  <div className="label-label">Order ID:</div>
+                  {isEditMode ? (
+                    <input 
+                      type="text" 
+                      className="label-input" 
+                      value={labelData.id} 
+                      onChange={(e) => handleInputChange('id', e.target.value)}
+                    />
+                  ) : (
+                    <div className="label-value">{labelData.id}</div>
+                  )}
+                </div>
+                <div className="label-row">
+                  <div className="label-label">Receiver:</div>
+                  {isEditMode ? (
+                    <input 
+                      type="text" 
+                      className="label-input" 
+                      value={labelData.customerName} 
+                      onChange={(e) => handleInputChange('customerName', e.target.value)}
+                    />
+                  ) : (
+                    <div className="label-value">{labelData.customerName}</div>
+                  )}
+                </div>
+                <div className="label-row">
+                  <div className="label-label">Address:</div>
+                  {isEditMode ? (
+                    <input 
+                      type="text" 
+                      className="label-input" 
+                      value={labelData.fullAddress} 
+                      onChange={(e) => handleInputChange('fullAddress', e.target.value)}
+                    />
+                  ) : (
+                    <div className="label-value">{labelData.fullAddress}</div>
+                  )}
+                </div>
+                <div className="label-row">
+                  <div className="label-label">Shipper:</div>
+                  {isEditMode ? (
+                    <input 
+                      type="text" 
+                      className="label-input" 
+                      value={labelData.shipper} 
+                      onChange={(e) => handleInputChange('shipper', e.target.value)}
+                    />
+                  ) : (
+                    <div className="label-value">{labelData.shipper}</div>
+                  )}
+                </div>
+                <div className="label-row">
+                  <div className="label-label">Shipper Add:</div>
+                  {isEditMode ? (
+                    <input 
+                      type="text" 
+                      className="label-input" 
+                      value={labelData.shipperAddress} 
+                      onChange={(e) => handleInputChange('shipperAddress', e.target.value)}
+                    />
+                  ) : (
+                    <div className="label-value">{labelData.shipperAddress}</div>
+                  )}
+                </div>
+                <div className="label-row">
+                  <div className="label-label">Weight:</div>
+                  {isEditMode ? (
+                    <input 
+                      type="text" 
+                      className="label-input" 
+                      value={labelData.weight} 
+                      onChange={(e) => handleInputChange('weight', e.target.value)}
+                    />
+                  ) : (
+                    <div className="label-value">{labelData.weight}</div>
+                  )}
+                </div>
+                <div className="label-row">
+                  <div className="label-label">Item:</div>
+                  {isEditMode ? (
+                    <input 
+                      type="text" 
+                      className="label-input" 
+                      value={labelData.item} 
+                      onChange={(e) => handleInputChange('item', e.target.value)}
+                    />
+                  ) : (
+                    <div className="label-value">{labelData.item}</div>
+                  )}
+                </div>
+                <div className="label-row">
+                  <div className="label-label">Size:</div>
+                  {isEditMode ? (
+                    <input 
+                      type="text" 
+                      className="label-input" 
+                      value={labelData.size} 
+                      onChange={(e) => handleInputChange('size', e.target.value)}
+                    />
+                  ) : (
+                    <div className="label-value">{labelData.size}</div>
+                  )}
+                </div>
+                <div className="label-row">
+                  <div className="label-label">Date:</div>
+                  {isEditMode ? (
+                    <input 
+                      type="text" 
+                      className="label-input" 
+                      value={labelData.date} 
+                      onChange={(e) => handleInputChange('date', e.target.value)}
+                    />
+                  ) : (
+                    <div className="label-value">{labelData.date}</div>
+                  )}
+                </div>
+                <div className="label-row">
+                  <div className="label-label">Notes:</div>
+                  {isEditMode ? (
+                    <input 
+                      type="text" 
+                      className="label-input" 
+                      value={labelData.notes} 
+                      onChange={(e) => handleInputChange('notes', e.target.value)}
+                    />
+                  ) : (
+                    <div className="label-value">{labelData.notes}</div>
+                  )}
+                </div>
+                
+                {/* Product Image in Label */}
+                <img src={sofaImage} alt={labelData.item} className="label-product-image" />
+                
+                <div className="barcode">
+                  <img src={generateBarcodeDataURL(labelData.id)} alt="Barcode" />
+                  <div className="barcode-text">{labelData.id}</div>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
-
-      {/* This wrapper is for printing only and will be hidden on screen */}
-      <div className="print-area-wrapper">
-        {/* PRINT PAGE 1: Delivery Note (A4) */}
-        <div className="print-container">
-          <DeliveryNoteSheet order={orderData} icon={marketplaceIcon} image={sofaImage} />
-        </div>
-
-        {/* PRINT PAGE 2: 4 Labels (A4 with 2x2 grid) */}
-        <div className="print-container" style={{ width: '190mm', minHeight: '277mm', padding: '10mm', boxSizing: 'border-box' }}>
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: '1fr 1fr', 
-            gridTemplateRows: '1fr 1fr', 
-            gap: '4mm', 
-            height: '257mm', // 277mm - 20mm (padding)
-            width: '170mm' // 190mm - 20mm (padding)
-          }}>
-            <Label data={labelData} />
-            <Label data={labelData} />
-            <Label data={labelData} />
-            <Label data={labelData} />
-          </div>
-        </div>
-      </div>
-    </>
+    </div>
   );
 };
 
