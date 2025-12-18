@@ -13,18 +13,85 @@ const ProductionSheet = () => {
   // Handle print for Delivery Note & Labels combined
   const handlePrint = () => {
     try {
-      // Validate required data
       if (!orderData || !orderData.customerName || !orderData.id) {
-        alert('Error: Missing order data. Please ensure all required fields are filled.');
+        alert('Error: Missing order data.');
         return;
       }
-      
-      window.print();
+
+      // Get printable HTML
+      const printContent = document.querySelector('.print-area-wrapper');
+      if (!printContent) {
+        alert('Print content not found');
+        return;
+      }
+
+      // Create hidden iframe
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = '0';
+
+      document.body.appendChild(iframe);
+
+      const iframeDoc = iframe.contentWindow.document;
+
+      iframeDoc.open();
+      iframeDoc.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Print</title>
+            <style>
+              @page {
+                size: A4;
+                margin: 10mm;
+              }
+  
+              body {
+                margin: 0;
+                font-family: Arial, sans-serif;
+              }
+  
+              * {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
+  
+          .print-container:first-child {
+  break-after: page;
+  page-break-after: always;
+}
+
+
+
+            </style>
+          </head>
+          <body>
+            ${printContent.innerHTML}
+          </body>
+        </html>
+      `);
+      iframeDoc.close();
+
+      iframe.onload = () => {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+
+        // Cleanup
+        setTimeout(() => {
+          document.body.removeChild(iframe);
+        }, 1000);
+      };
+
     } catch (error) {
       console.error('Print error:', error);
-      alert('An error occurred while printing. Please try again.');
+      alert('Printing failed');
     }
   };
+
 
   // Get marketplace icon component
   const getMarketplaceIcon = (marketplace) => {
@@ -65,10 +132,10 @@ const ProductionSheet = () => {
     orderId: orderData.id,
     weight: `${orderData.order?.quantity * 25 || 25}kg`,
     dimensions: `${orderData.order?.size || 'Standard'} - ${orderData.order?.height || 'Standard'} height`,
-    shippingDate: new Date().toLocaleDateString('en-GB', { 
-      day: '2-digit', 
-      month: '2-digit', 
-      year: 'numeric' 
+    shippingDate: new Date().toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
     }),
     remarks: orderData.extras || 'Standard delivery',
     productImage: orderData.productImage || sofaImage,
@@ -261,14 +328,12 @@ const ProductionSheet = () => {
           }
           /* Ensure containers are visible */
           .print-container {
-            display: block !important;
-            visibility: visible !important;
-            page-break-after: always;
-            page-break-inside: avoid;
-          }
-          .print-container:last-child {
-            page-break-after: auto;
-          }
+  display: block !important;
+  visibility: visible !important;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
           /* Preserve layouts */
           .print-area-wrapper div[style*="grid"] {
             display: grid !important;
@@ -323,22 +388,39 @@ const ProductionSheet = () => {
         </div>
 
         {/* PRINT PAGE 2: 4 Labels (A4 with 2x2 grid) */}
-        <div className="print-container" style={{ width: '190mm', minHeight: '277mm', padding: '10mm', boxSizing: 'border-box' }}>
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: '1fr 1fr', 
-            gridTemplateRows: '1fr 1fr', 
-            gap: '4mm', 
-            height: '257mm', // 277mm - 20mm (padding)
-            width: '170mm' // 190mm - 20mm (padding)
-          }}>
-            <Label data={labelData} />
-            <Label data={labelData} />
-            <Label data={labelData} />
-            <Label data={labelData} />
-          </div>
+
+        {/* PRINT PAGE 2: 4 Labels (A4 – SINGLE PAGE ONLY) */}
+{/* PRINT PAGE 2: 4 Labels (A4 – SINGLE PAGE ONLY) */}
+<div
+  className="print-container"
+  style={{
+    width: '210mm',
+    height: '297mm',
+    padding: '10mm',
+    boxSizing: 'border-box',
+    overflow: 'hidden',
+  }}
+>
+  <div
+    style={{
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gridTemplateRows: '1fr 1fr',
+      gap: '6mm',
+      width: '100%',
+      height: '100%',
+    }}
+  >
+    <Label data={labelData} />
+    <Label data={labelData} />
+    <Label data={labelData} />
+    <Label data={labelData} />
+  </div>
+</div>
+
+
         </div>
-      </div>
+    
     </>
   );
 };
