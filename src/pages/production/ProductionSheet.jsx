@@ -373,9 +373,9 @@ const ProductionSheet = () => {
               }
               
               .product-image {
-                max-width: 100%;
-                max-height: 100%;
-                object-fit: contain;
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
               }
               
               .footer {
@@ -508,8 +508,8 @@ const ProductionSheet = () => {
               }
               
               .label-product-image {
-                max-width: 120px;
-                max-height: 120px;
+                max-width: 150px;
+                max-height: 150px;
                 border: 1px solid #ddd;
                 border-radius: 5px;
                 margin: 10px auto;
@@ -819,9 +819,10 @@ const ProductionSheet = () => {
         }
         
         .product-image {
-          max-width: 100%;
-          max-height: 100%;
-          object-fit: contain;
+          
+        width: 100%;
+        height: 100%;
+          object-fit: cover;
         }
         
         .footer {
@@ -970,8 +971,8 @@ const ProductionSheet = () => {
         }
         
         .label-product-image {
-          max-width: 120px;
-          max-height: 120px;
+          max-width: 150px;
+          max-height: 150px;
           border: 1px solid #ddd;
           border-radius: 5px;
           margin: 10px auto;
@@ -1083,7 +1084,7 @@ const ProductionSheet = () => {
           }
           
           .product-image-container {
-            height: 150px;
+            height: 100px;
           }
           
           .label-product-image {

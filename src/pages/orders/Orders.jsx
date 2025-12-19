@@ -37,6 +37,7 @@ const initializeOrders = () => {
   }));
 };
 
+
 // Save orders to localStorage
 const saveOrdersToStorage = (orders) => {
   try {
@@ -440,7 +441,7 @@ const Orders = () => {
         isOpen={isAddOrderModalOpen}
         onClose={handleCloseAddOrderModal}
         title="Add New Order"
-        size="sm"
+        size="md"
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Order Name */}
