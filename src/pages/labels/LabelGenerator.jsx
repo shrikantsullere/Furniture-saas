@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
-const ProductionSheetComponent = () => {
+const LabelGenerator = () => {
   const contentRef = useRef(null);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -591,4 +591,4 @@ const ProductionSheetComponent = () => {
   );
 };
 
-export default ProductionSheetComponent;
+export default LabelGenerator;

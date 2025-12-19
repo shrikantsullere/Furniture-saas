@@ -37,6 +37,7 @@ const initializeOrders = () => {
   }));
 };
 
+
 // Save orders to localStorage
 const saveOrdersToStorage = (orders) => {
   try {
@@ -151,9 +152,12 @@ const Orders = () => {
   const [formData, setFormData] = useState({
     orderName: '',
     orderId: '',
+    marketplace: 'Manual',   // ✅ NEW
+    postcode: '',             // ✅ NEW
     orderDescription: '',
     quantity: '',
   });
+  
   const [formErrors, setFormErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -251,7 +255,15 @@ const Orders = () => {
     
     if (!formData.quantity.trim()) {
       errors.quantity = 'Quantity is required';
-    } else if (isNaN(formData.quantity) || parseInt(formData.quantity) <= 0) {
+    }
+    if (!formData.marketplace.trim()) {
+      errors.marketplace = 'Marketplace is required';
+    }
+    
+    if (!formData.postcode.trim()) {
+      errors.postcode = 'Postcode is required';
+    } 
+    else if (isNaN(formData.quantity) || parseInt(formData.quantity) <= 0) {
       errors.quantity = 'Quantity must be a positive number';
     }
     
@@ -273,12 +285,12 @@ const Orders = () => {
       // Create new order object
       const newOrder = {
         id: formData.orderId,
-        marketplace: 'Manual',
+        marketplace: formData.marketplace,
         customerName: formData.orderName,
         fullAddress: formData.orderDescription,
         addressLine1: formData.orderDescription.split(',')[0] || formData.orderDescription,
         addressLine2: formData.orderDescription.split(',')[1] || '',
-        postcode: '',
+        postcode: formData.postcode,
         email: '',
         phone: '',
         itemsCount: parseInt(formData.quantity),
@@ -491,6 +503,49 @@ const Orders = () => {
               <p className="text-red-500 text-xs mt-1">{formErrors.orderDescription}</p>
             )}
           </div>
+
+          <div>
+  <label className="block text-sm font-medium text-gray-700 mb-2">
+    Marketplace <span className="text-red-500">*</span>
+  </label>
+  <select
+    name="marketplace"
+    value={formData.marketplace}
+    onChange={handleInputChange}
+    className={`w-full border rounded-lg px-4 py-2 bg-white focus:ring-2 focus:ring-primary ${
+      formErrors.marketplace ? 'border-red-500' : 'border-primary'
+    }`}
+  >
+    <option value="Manual">Manual</option>
+    <option value="Amazon">Amazon</option>
+    <option value="eBay">eBay</option>
+    <option value="Shopify">Shopify</option>
+  </select>
+  {formErrors.marketplace && (
+    <p className="text-red-500 text-xs mt-1">{formErrors.marketplace}</p>
+  )}
+</div>
+
+
+<div>
+  <label className="block text-sm font-medium text-gray-700 mb-2">
+    Postcode <span className="text-red-500">*</span>
+  </label>
+  <input
+    type="text"
+    name="postcode"
+    value={formData.postcode}
+    onChange={handleInputChange}
+    className={`w-full border rounded-lg px-4 py-2 bg-white focus:ring-2 focus:ring-primary ${
+      formErrors.postcode ? 'border-red-500' : 'border-primary'
+    }`}
+    placeholder="Enter postcode"
+  />
+  {formErrors.postcode && (
+    <p className="text-red-500 text-xs mt-1">{formErrors.postcode}</p>
+  )}
+</div>
+
 
           {/* Quantity */}
           <div>
