@@ -155,417 +155,64 @@ const ProductionSheetComponent = () => {
     handleProductionInputChange('signature', '');
   };
   
-  // Detect if device is mobile
-  const isMobileDevice = () => {
-    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-  };
-  
-  const handlePrint = async () => {
+  const handleDownloadPDF = async () => {
     if (isProductionSheetEditMode || isLabelEditMode) {
-      alert('Please save your changes before printing!');
+      alert('Please save your changes before downloading PDF!');
       return;
     }
     
-    if (isMobileDevice()) {
-      // For mobile devices, generate PDF
-      setIsGeneratingPDF(true);
-      try {
-        const pdf = new jsPDF('p', 'mm', 'a4');
+    // Always generate PDF
+    setIsGeneratingPDF(true);
+    try {
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      
+      // Get content to print
+      const printContent = contentRef.current;
+      const a4Containers = printContent.querySelectorAll('.a4-container');
+      
+      // Process each A4 container
+      for (let i = 0; i < a4Containers.length; i++) {
+        const container = a4Containers[i];
         
-        // Get content to print
-        const printContent = contentRef.current;
-        const a4Containers = printContent.querySelectorAll('.a4-container');
+        // Convert container to canvas
+        const canvas = await html2canvas(container, {
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: '#ffffff'
+        });
         
-        // Process each A4 container
-        for (let i = 0; i < a4Containers.length; i++) {
-          const container = a4Containers[i];
-          
-          // Convert container to canvas
-          const canvas = await html2canvas(container, {
-            scale: 2,
-            useCORS: true,
-            allowTaint: true,
-            backgroundColor: '#ffffff'
-          });
-          
-          const imgData = canvas.toDataURL('image/png');
-          
-          // Add image to PDF
-          if (i > 0) {
-            pdf.addPage();
-          }
-          
-          const imgWidth = 210; // A4 width in mm
-          const pageHeight = 297; // A4 height in mm
-          const imgHeight = (canvas.height * imgWidth) / canvas.width;
-          let heightLeft = imgHeight;
-          let position = 0;
-          
-          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-          heightLeft -= pageHeight;
-          
-          while (heightLeft >= 0) {
-            position = heightLeft - imgHeight;
-            pdf.addPage();
-            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-            heightLeft -= pageHeight;
-          }
+        const imgData = canvas.toDataURL('image/png');
+        
+        // Add image to PDF
+        if (i > 0) {
+          pdf.addPage();
         }
         
-        // Save the PDF
-        pdf.save(`production-sheet-${new Date().getTime()}.pdf`);
-      } catch (error) {
-        console.error('Error generating PDF:', error);
-        alert('Failed to generate PDF. Please try again.');
-      } finally {
-        setIsGeneratingPDF(false);
+        const imgWidth = 210; // A4 width in mm
+        const pageHeight = 297; // A4 height in mm
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        let heightLeft = imgHeight;
+        let position = 0;
+        
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+        
+        while (heightLeft >= 0) {
+          position = heightLeft - imgHeight;
+          pdf.addPage();
+          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+          heightLeft -= pageHeight;
+        }
       }
-    } else {
-      // For desktop devices, use the original print functionality
-      const printContent = contentRef.current;
       
-      // Create a new window for printing
-      const printWindow = window.open('', '_blank');
-      
-      // Copy the content to the new window
-      printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <title>Production Sheets</title>
-            <style>
-              @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
-              
-              * {
-                font-family: 'Roboto', sans-serif;
-                box-sizing: border-box;
-              }
-              
-              body {
-                margin: 0;
-                padding: 0;
-                background-color: white;
-              }
-              
-              .production-container {
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-              }
-              
-              .a4-container {
-                width: 210mm;
-                min-height: 297mm;
-                background-color: white;
-                padding: 20mm;
-                position: relative;
-                display: flex;
-                flex-direction: column;
-                page-break-after: always;
-              }
-              
-              .a4-container:last-child {
-                page-break-after: auto;
-              }
-              
-              /* Production Sheet Styles */
-              .production-sheet {
-                margin-bottom: 30px;
-              }
-              
-              .header {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                border-bottom: 2px solid #00B7B5;
-                padding-bottom: 15px;
-                margin-bottom: 20px;
-              }
-              
-              .logo-section {
-                display: flex;
-                align-items: center;
-              }
-              
-              .company-logo {
-                font-size: 22px;
-                font-weight: 700;
-                color: #00B7B5;
-                margin-right: 20px;
-              }
-              
-              .marketplace-logo {
-                font-size: 16px;
-                color: #666;
-                padding: 5px 10px;
-                border: 1px solid #ddd;
-                border-radius: 4px;
-                display: flex;
-                align-items: center;
-                gap: 5px;
-              }
-              
-              .order-id {
-                font-size: 24px;
-                font-weight: 700;
-                color: #333;
-              }
-              
-              .content {
-                display: flex;
-                gap: 20px;
-                margin-bottom: 20px;
-                flex-grow: 1;
-              }
-              
-              .left-column {
-                flex: 1;
-              }
-              
-              .right-column {
-                flex: 1;
-              }
-              
-              .section {
-                margin-bottom: 25px;
-                border: 1px solid #ddd;
-                padding: 15px;
-                border-radius: 5px;
-              }
-              
-              .section-title {
-                font-size: 18px;
-                font-weight: 700;
-                margin-bottom: 15px;
-                color: #00B7B5;
-                border-bottom: 1px solid #eee;
-                padding-bottom: 8px;
-              }
-              
-              .info-row {
-                display: flex;
-                margin-bottom: 10px;
-              }
-              
-              .info-label {
-                font-weight: 500;
-                width: 150px;
-                color: #555;
-                flex-shrink: 0;
-              }
-              
-              .info-value {
-                flex: 1;
-                color: #333;
-                word-wrap: break-word;
-              }
-              
-              .product-image-container {
-                width: 100%;
-                height: 200px;
-                border: 1px solid #ddd;
-                border-radius: 5px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                overflow: hidden;
-                margin-bottom: 15px;
-              }
-              
-              .product-image {
-                max-width: 100%;
-                max-height: 100%;
-                object-fit: contain;
-              }
-              
-              .footer {
-                display: flex;
-                justify-content: space-between;
-                border-top: 2px solid #00B7B5;
-                padding-top: 15px;
-                margin-top: auto;
-              }
-              
-              .footer-section {
-                width: 30%;
-              }
-              
-              .notes {
-                width: 100%;
-                height: 100px;
-                border: 1px solid #ddd;
-                padding: 10px;
-                border-radius: 5px;
-                resize: none;
-              }
-              
-              /* Signature Styles */
-              .signature-container {
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-                width: 100%;
-                height: 60px;
-                border: 1px solid #ddd;
-                border-radius: 5px;
-                background-color: #fff;
-                position: relative;
-              }
-              
-              .signature-image {
-                max-height: 50px;
-                max-width: 100%;
-                object-fit: contain;
-              }
-              
-              .signature-placeholder {
-                color: #999;
-                font-style: italic;
-                font-size: 14px;
-              }
-              
-              .signature-input {
-                display: none;
-              }
-              
-              .signature-buttons {
-                position: absolute;
-                top: -25px;
-                right: 0;
-                display: flex;
-                gap: 5px;
-              }
-              
-              .signature-btn {
-                background-color: #f0f0f0;
-                border: 1px solid #ddd;
-                border-radius: 3px;
-                padding: 3px 8px;
-                font-size: 12px;
-                cursor: pointer;
-                color: #666;
-              }
-              
-              .signature-btn:hover {
-                background-color: #e0e0e0;
-              }
-              
-              /* Label Sheet Styles */
-              .label-sheet {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                grid-template-rows: 1fr 1fr;
-                gap: 10px;
-                height: 100%;
-              }
-              
-              .label {
-                border: 2px dashed #ccc;
-                padding: 15px;
-                display: flex;
-                flex-direction: column;
-                position: relative;
-              }
-              
-              .label-header {
-                display: flex;
-                justify-content: space-between;
-                margin-bottom: 10px;
-                border-bottom: 1px solid #eee;
-                padding-bottom: 5px;
-              }
-              
-              .label-title {
-                font-weight: 700;
-                font-size: 16px;
-                color: #00B7B5;
-              }
-              
-              .label-content {
-                flex-grow: 1;
-                display: flex;
-                flex-direction: column;
-              }
-              
-              .label-row {
-                display: flex;
-                margin-bottom: 5px;
-                font-size: 14px;
-              }
-              
-              .label-label {
-                font-weight: 500;
-                width: 80px;
-                color: #555;
-                flex-shrink: 0;
-              }
-              
-              .label-value {
-                flex: 1;
-                color: #333;
-                word-wrap: break-word;
-              }
-              
-              .label-product-image {
-                max-width: 120px;
-                max-height: 120px;
-                border: 1px solid #ddd;
-                border-radius: 5px;
-                margin: 10px auto;
-                align-self: center;
-                object-fit: contain;
-              }
-              
-              .barcode {
-                margin-top: auto;
-                text-align: center;
-              }
-              
-              .barcode img {
-                height: 40px;
-              }
-              
-              .barcode-text {
-                font-size: 12px;
-                color: #666;
-              }
-              
-              @media print {
-                body {
-                  margin: 0;
-                  padding: 0;
-                }
-                
-                .a4-container {
-                  margin: 0;
-                  box-shadow: none;
-                }
-                
-                .info-input, .label-input {
-                  border-bottom: none;
-                }
-                
-                .signature-buttons {
-                  display: none;
-                }
-              }
-            </style>
-          </head>
-          <body>
-            ${printContent.innerHTML}
-          </body>
-        </html>
-      `);
-      
-      printWindow.document.close();
-      
-      // Wait for the content to load before printing
-      printWindow.onload = function() {
-        printWindow.focus();
-        printWindow.print();
-        printWindow.close();
-      };
+      // Save the PDF
+      pdf.save(`production-sheet-${new Date().getTime()}.pdf`);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Failed to generate PDF. Please try again.');
+    } finally {
+      setIsGeneratingPDF(false);
     }
   };
 
@@ -611,6 +258,7 @@ const ProductionSheetComponent = () => {
           align-items: center;
           gap: 30px;
           position: relative;
+          width: 100%;
         }
         
         .a4-container {
@@ -634,7 +282,7 @@ const ProductionSheetComponent = () => {
           top: 20px;
         }
         
-        .print-button, .edit-button, .cancel-button {
+        .download-button, .edit-button, .cancel-button {
           color: white;
           border: none;
           padding: 12px 20px;
@@ -649,11 +297,11 @@ const ProductionSheetComponent = () => {
           transition: all 0.3s ease;
         }
         
-        .print-button {
+        .download-button {
           background-color: #00B7B5;
         }
         
-        .print-button:hover {
+        .download-button:hover {
           background-color: #009a98;
           transform: translateY(-2px);
           box-shadow: 0 4px 8px rgba(0,0,0,0.2);
@@ -687,13 +335,13 @@ const ProductionSheetComponent = () => {
           box-shadow: 0 4px 8px rgba(0,0,0,0.2);
         }
         
-        .print-button:disabled, .edit-button:disabled, .cancel-button:disabled {
+        .download-button:disabled, .edit-button:disabled, .cancel-button:disabled {
           cursor: not-allowed;
           transform: none;
           opacity: 0.6;
         }
         
-        .print-button svg, .edit-button svg, .cancel-button svg {
+        .download-button svg, .edit-button svg, .cancel-button svg {
           width: 18px;
           height: 18px;
         }
@@ -1024,7 +672,7 @@ const ProductionSheetComponent = () => {
             flex-wrap: wrap;
           }
           
-          .print-button, .edit-button, .cancel-button {
+          .download-button, .edit-button, .cancel-button {
             padding: 10px 15px;
             font-size: 14px;
             flex: 1;
@@ -1093,7 +741,7 @@ const ProductionSheetComponent = () => {
         }
         
         @media screen and (max-width: 480px) {
-          .print-button, .edit-button, .cancel-button {
+          .download-button, .edit-button, .cancel-button {
             padding: 8px 12px;
             font-size: 12px;
           }
@@ -1118,8 +766,8 @@ const ProductionSheetComponent = () => {
       
       <div className="print-button-container">
         <button 
-          className="print-button" 
-          onClick={handlePrint}
+          className="download-button" 
+          onClick={handleDownloadPDF}
           disabled={isGeneratingPDF}
         >
           {isGeneratingPDF ? (
@@ -1130,9 +778,9 @@ const ProductionSheetComponent = () => {
           ) : (
             <>
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
-              {isMobileDevice() ? 'Download PDF' : 'Print'}
+              Download PDF
             </>
           )}
         </button>
