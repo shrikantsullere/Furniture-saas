@@ -288,8 +288,8 @@ const LabelGenerator = () => {
         }
         
         .barcode {
-          margin-top: auto;
-          text-align: center;
+          margin: 10px auto;
+          align-self: center;
         }
         
         .barcode img {
@@ -580,7 +580,7 @@ const LabelGenerator = () => {
                 
                 <div className="barcode">
                   <img src={generateBarcodeURL(labelData.id)} alt="Barcode" />
-                  <div className="barcode-text">{labelData.id}</div>
+                  {/* <div className="barcode-text">{labelData.id}</div> */}
                 </div>
               </div>
             </div>
