@@ -469,7 +469,7 @@ const ProductionSheet = () => {
         
         .product-image-container {
           width: 100%;
-          height: 300px;
+          height: 200px;
           border: 1px solid #ddd;
           border-radius: 5px;
           display: flex;
@@ -482,7 +482,7 @@ const ProductionSheet = () => {
         .product-image {
           width: 100%;
           height: 100%;
-          object-fit: contain;
+          object-fit: cover;
         }
         
         .footer {
@@ -631,18 +631,18 @@ const ProductionSheet = () => {
         }
         
         .label-product-image {
-          width: 120px;
-          height: 120px;
+          width: 150px;
+          height: 150px;
           border: 1px solid #ddd;
           border-radius: 5px;
           margin: 10px auto;
           align-self: center;
-          object-fit: contain;
+          object-fit: cover;
         }
         
         .barcode {
-          margin-top: auto;
-          text-align: center;
+          margin: 10px auto;
+          align-self: center;
         }
         
         .barcode img {
@@ -1280,7 +1280,7 @@ const ProductionSheet = () => {
                 
                 <div className="barcode">
                   <img src={generateBarcodeURL(savedLabelData.id)} alt="Barcode" />
-                  <div className="barcode-text">{savedLabelData.id}</div>
+                  {/* <div className="barcode-text">{savedLabelData.id}</div> */}
                 </div>
               </div>
             </div>
